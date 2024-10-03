@@ -1,2 +1,3 @@
-# WeiduModPackagerLibrary
-A library that is used internally by the WeiduModPackager GitHub action templates.
+# WeiDU Mod Package Builder (core)
+
+Reusable core packager workflow. Do not use directly!

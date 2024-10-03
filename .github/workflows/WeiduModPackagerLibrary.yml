@@ -1,0 +1,89 @@
+# Copyright (c) 2024 Argent77
+
+name: WeiDU Mod Package Builder (core)
+
+on:
+  workflow_call:
+    inputs:
+      # Determines the resulting archive format.
+      # Supported values: iemod, windows, linux, macos
+      type:
+        description: 'The mod package type'
+        required: false
+        type: string
+        default: 'iemod'
+
+      # Determines the architecture of the included setup binary.
+      # Has currently only an effect for type=windows
+      # Supported values: amd64, x86, x86-legacy
+      architecture:
+        description: 'Architecture of the included setup binary'
+        required: false
+        type: string
+        default: 'amd64'
+
+      # Suffix to add to the mod package filename.
+      # Supported values: version, none. Anything else is treated as a literal string.
+      # - version: Uses the VERSION definition of the tp2 file of the mod if available.
+      # - none:    Indicates that no version suffix should be added.
+      suffix:
+        description: 'Version suffix added to the mod package name'
+        required: false
+        type: string
+        default: 'version'
+
+    outputs:
+      weidu_mod_package:
+        description: 'Name of the created mod package'
+        value: ${{ jobs.packager.outputs.weidu_mod_package }}
+
+jobs:
+  packager:
+    if: github.ref_type == 'tag' || github.event.release.tag_name
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    outputs:
+      weidu_mod_package: ${{ steps.create.outputs.weidu_mod_package }}
+
+    steps:
+      - id: setup
+        name: Set up git configurations
+        run: |
+          git lfs uninstall
+          git config --global core.autocrlf false
+          git config --global core.ignorecase true
+
+      - id: prepare_repo
+        name: Check out repository
+        uses: actions/checkout@v4
+
+      - id: prepare_actions
+        name: Check out packager repository
+        uses: actions/checkout@v4
+        with:
+          repository: argent77test/TestActionGlobal
+          path: .weidu_packager
+          sparse-checkout: dist
+
+      - id: setup_actions
+        name: Set up environment variables for packager repository
+        run: echo "PACKAGER_PATH=$GITHUB_WORKSPACE/.weidu_packager/dist" >> $GITHUB_ENV
+
+      - id: create
+        name: Create mod package
+        run: |
+          chmod +x $PACKAGER_PATH/weidu_mod_package_builder.sh
+          $PACKAGER_PATH/weidu_mod_package_builder.sh type=${{ inputs.type }} arch=${{ inputs.architecture }} suffix=${{ inputs.suffix }}
+
+      - id: upload
+        name: Upload asset to release
+        uses: svenstaro/upload-release-action@2.9.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ steps.create.outputs.weidu_mod_package }}
+          tag: ${{ github.ref || github.event.release.tag_name }}
+          overwrite: true
