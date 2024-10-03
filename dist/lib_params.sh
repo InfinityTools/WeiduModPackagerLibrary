@@ -19,8 +19,10 @@ eval_arguments() {
       arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy)
         ;;
       *)
-        printerr "ERROR: Invalid argument: $1"
-        return 1
+        if ! $(echo "$1" | grep -qe '^suffix=') ; then
+          printerr "ERROR: Invalid argument: $1"
+          return 1
+        fi
         ;;
     esac
     shift
@@ -67,7 +69,7 @@ eval_type() {
 eval_suffix() {
   ret_val="version"
   while [ $# -gt 0 ]; do
-    if echo "$1" | grep -F -qe 'suffix=' ; then
+    if echo "$1" | grep -qe '^suffix=' ; then
       param=$(echo "$1" | sed -e 's/suffix=//')
       case $param in
         none)
