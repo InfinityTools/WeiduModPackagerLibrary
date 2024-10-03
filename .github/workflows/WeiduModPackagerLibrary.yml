@@ -65,7 +65,7 @@ jobs:
         name: Check out packager repository
         uses: actions/checkout@v4
         with:
-          repository: argent77test/TestActionGlobal
+          repository: InfinityTools/WeiduModPackagerLibrary
           path: .weidu_packager
           sparse-checkout: dist
 
