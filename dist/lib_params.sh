@@ -11,7 +11,7 @@
 # Returns exit code 0 if all arguments passed the check, 1 otherwise.
 eval_arguments() {
   while [ $# -gt 0 ]; do
-    case $1 in
+    case "$1" in
       type= | type=iemod | type=windows | type=linux | type=macos)
         ;;
       suffix= | suffix=version | suffix=none | suffix=*)
