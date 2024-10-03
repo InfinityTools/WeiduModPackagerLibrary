@@ -49,14 +49,14 @@ source "$DIR/lib_weidu.sh" || exit 1
 root="$PWD"
 
 # Parameter check
-eval_arguments $@ || exit 1
+eval_arguments "$@" || exit 1
 
 # Supported types: iemod, windows, linux, macos
-archive_type=$(eval_type $@)
+archive_type=$(eval_type "$@")
 echo "Archive type: $archive_type"
 
 # Supported architectures: amd64, x86, x86-legacy
-arch=$(eval_arch $@)
+arch=$(eval_arch "$@")
 if [ "$archive_type" = "iemod" ]; then
   echo "Architecture: platform-neutral"
 else
@@ -64,7 +64,7 @@ else
 fi
 
 # Supported suffixes: none, version, <literal string>
-suffix=$(eval_suffix $@)
+suffix=$(eval_suffix "$@")
 if [ "$suffix" = "version" ]; then
   echo "Suffix: <tp2 VERSION string>"
 elif [ -z "$suffix" ]; then
