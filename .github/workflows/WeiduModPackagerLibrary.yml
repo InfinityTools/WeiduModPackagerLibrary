@@ -77,7 +77,10 @@ jobs:
         name: Create mod package
         run: |
           chmod +x $PACKAGER_PATH/weidu_mod_package_builder.sh
-          $PACKAGER_PATH/weidu_mod_package_builder.sh ${{ type=inputs.type }} ${{ arch=inputs.architecture }} ${{ suffix=inputs.suffix }} || exit 1
+          export type_arg="${{ inputs.type }}"
+          export arch_arg="${{ inputs.architecture }}"
+          export suffix_arg="${{ inputs.suffix }}"
+          $PACKAGER_PATH/weidu_mod_package_builder.sh "type=$type_arg" "arch=$arch_arg" "suffix=$suffix_arg" || exit 1
 
       - id: upload
         name: Upload asset to release
