@@ -11,7 +11,7 @@
 # Returns exit code 0 if all arguments passed the check, 1 otherwise.
 eval_arguments() {
   while [ $# -gt 0 ]; do
-    case "$1" in
+    case $1 in
       type= | type=iemod | type=windows | type=linux | type=macos)
         ;;
       suffix= | suffix=version | suffix=none | suffix=*)
@@ -19,10 +19,8 @@ eval_arguments() {
       arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy)
         ;;
       *)
-        if ! $(echo "$1" | grep -qe '^suffix=') ; then
-          printerr "ERROR: Invalid argument: $1"
-          return 1
-        fi
+        printerr "ERROR: Invalid argument: $1"
+        return 1
         ;;
     esac
     shift
@@ -69,7 +67,7 @@ eval_type() {
 eval_suffix() {
   ret_val="version"
   while [ $# -gt 0 ]; do
-    if echo "$1" | grep -qe '^suffix=' ; then
+    if echo "$1" | grep -F -qe 'suffix=' ; then
       param=$(echo "$1" | sed -e 's/suffix=//')
       case $param in
         none)
