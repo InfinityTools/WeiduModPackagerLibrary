@@ -6,6 +6,10 @@
 # This script is not intended to be executed directly. #
 ########################################################
 
+# A set of characters in filenames that require special care
+special_characters_regex='[<>:|*?$"/\\]'
+
+
 # Prints a specified message to stderr.
 printerr() {
   if [ $# -gt 0 ]; then
@@ -21,6 +25,30 @@ to_lower() {
   fi
 }
 
+
+# Prints the given string parameter with all special characters replaced by a second parameter.
+# Expected parameters: string, [replacement]
+# Default replacement if second parameter is omitted: underscore (_)
+normalize_filename() {
+  if [ $# -gt 0 ]; then
+    if [ $# -gt 1 ]; then
+      replace="$2"
+    else
+      replace="_"
+    fi
+    echo "$1" | sed -re "s/$special_characters_regex/$replace/g" | tr -dc '[:print:]'
+  fi
+}
+
+# Decodes specially encoded characters in the URL strings and prints it to stdout.
+# Expected parameter: string
+decode_url_string() {
+  if [ $# -gt 0 ]; then
+    echo "$1" | sed -e 's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' | xargs echo -e
+  fi
+}
+
+
 # Returns the file extension used by executables.
 # Expected parameters: architecture
 get_bin_ext() {
@@ -30,6 +58,7 @@ get_bin_ext() {
     fi
   fi
 }
+
 
 # Checking required tools
 for tool in "cat" "curl" "find" "grep" "jq" "unzip" "zip"; do

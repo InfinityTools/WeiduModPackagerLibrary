@@ -32,7 +32,58 @@ on:
         type: string
         default: 'version'
 
+      # An arbitrary string that will be appended after the package base name.
+      # This can be used to further specialize a package name (e.g. when providing packages for
+      # different architectures for the same platform).
+      extra:
+        description: 'A fixed string that is appended after the package base name, but before a version string'
+        required: false
+        type: string
+        default: ''
+
+      # This parameter defines the mod package base name.
+      # Supported types: tp2, ini. Anything else is treated as a literal string.
+      # - tp2: Uses the tp2 filename as base for generating the mod package base name.
+      # - ini: Fetches the "name" definition from the associated Project Infinity metadata ini file.
+      #        Falls back to "tp2" if not available.
+      naming:
+        description: 'Defines the base name for the mod package.'
+        required: false
+        type: string
+        default: 'tp2'
+
+      # WeiDU version to use for the setup binaries for platform-specific zip archives.
+      # Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
+      # Currently supported versions: 246 or later.
+      weidu_version:
+        description: 'Specifies the WeiDU version to include in platform-specific zip archives.'
+        required: false
+        type: string
+        default: 'latest'
+
+      # The prefix string to use for Windows-specific zip archive names.
+      prefix_windows:
+        description: 'Prefix for the mod package name that is used for the Windows-specific zip archive.'
+        required: false
+        type: string
+        default: 'win'
+
+      # The prefix string to use for Linux-specific zip archive names.
+      prefix_linux:
+        description: 'Prefix for the mod package name that is used for the Linux-specific zip archive.'
+        required: false
+        type: string
+        default: 'lin'
+
+      # The prefix string to use for macOS-specific zip archive names.
+      prefix_macos:
+        description: 'Prefix for the mod package name that is used for the macOS-specific zip archive.'
+        required: false
+        type: string
+        default: 'osx'
+
     outputs:
+      # Name of the created mod package.
       weidu_mod_package:
         description: 'Name of the created mod package'
         value: ${{ jobs.packager.outputs.weidu_mod_package }}
@@ -77,7 +128,16 @@ jobs:
         name: Create mod package
         run: |
           chmod +x $PACKAGER_PATH/weidu_mod_package_builder.sh
-          $PACKAGER_PATH/weidu_mod_package_builder.sh "type=${{ inputs.type }}" "arch=${{ inputs.architecture }}" "suffix=${{ inputs.suffix }}" || exit 1
+          $PACKAGER_PATH/weidu_mod_package_builder.sh \
+              "type=${{ inputs.type }}" \
+              "arch=${{ inputs.architecture }}" \
+              "suffix=${{ inputs.suffix }}" \
+              "weidu=${{ inputs.weidu_version }}" \
+              "extra=${{ inputs.extra }}" \
+              "naming=${{ inputs.naming }}" \
+              "prefix_win=${{ inputs.prefix_windows }}" \
+              "prefix_lin=${{ inputs.prefix_linux }}" \
+              "prefix_mac=${{ inputs.prefix_macos }}" || exit 1
 
       - id: upload
         name: Upload asset to release

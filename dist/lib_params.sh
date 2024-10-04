@@ -14,9 +14,33 @@ eval_arguments() {
     case $1 in
       type= | type=iemod | type=windows | type=linux | type=macos)
         ;;
-      suffix= | suffix=version | suffix=none | suffix=*)
-        ;;
       arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy)
+        ;;
+      suffix=*)
+        ;;
+      weidu=*)
+        v="${1##*=}"
+        if [ "$v" != "latest" ]; then
+          if echo "$v" | grep -qe '^[0-9]\+$' ; then
+            if [ $v -lt $weidu_min ]; then
+              printerr "ERROR: Unsupported WeiDU version: $v"
+              return 1
+            fi
+          else
+            printerr "ERROR: Invalid WeiDU version: $v"
+            return 1
+          fi
+        fi
+        ;;
+      extra=*)
+        ;;
+      naming=*)
+        ;;
+      prefix_win=*)
+        ;;
+      prefix_lin=*)
+        ;;
+      prefix_mac=*)
         ;;
       *)
         printerr "ERROR: Invalid argument: $1"
@@ -34,14 +58,14 @@ eval_arguments() {
 # Supported archive types:
 #   iemod:    Creates a .iemod archive (does not include setup binary).
 #   windows:  Creates a .zip file with a Windows setup binary.
-#   linux:    Creates a .zip file with the Linux setup binary.
-#   macos:    Creates a .zip file with the macOS setup binary and .command script file.
+#   linux:    Creates a .zip file with a Linux setup binary.
+#   macos:    Creates a .zip file with a macOS setup binary and .command script file.
 # Pass $@ to the function.
 eval_type() {
   ret_val="iemod"
   while [ $# -gt 0 ]; do
-    if echo "$1" | grep -F -qe 'type=' ; then
-      param=$(echo "$1" | sed -e 's/type=//')
+    if echo "$1" | grep -qe '^type=' ; then
+      param="${1##*=}"
       case $param in
         iemod | windows | linux | macos)
           ret_val="$param"
@@ -67,8 +91,8 @@ eval_type() {
 eval_suffix() {
   ret_val="version"
   while [ $# -gt 0 ]; do
-    if echo "$1" | grep -F -qe 'suffix=' ; then
-      param=$(echo "$1" | sed -e 's/suffix=//')
+    if echo "$1" | grep -qe '^suffix=' ; then
+      param="${1##*=}"
       case $param in
         none)
           ret_val=""
@@ -77,10 +101,16 @@ eval_suffix() {
           ret_val="$param"
           ;;
         *)
+          if echo "$param" | grep -qe '^".*' ; then
           # Unwrap text in double quotes
-          ret_val=$(echo "$param" | sed -re 's/^"([^"]*)"/\1/')
-          # Unwrap text in single quotes
-          ret_val=$(echo "$ret_val" | sed -re "s/^'([^']*)'/\1/")
+            ret_val=$(echo "$param" | sed -re 's/^"([^"]*)".*/\1/')
+          elif echo "$param" | grep -qe "^'.*" ; then
+            # Unwrap text in single quotes
+            ret_val=$(echo "$param" | sed -re "s/^'([^']*)'.*/\1/")
+          else
+            # No delimiters detected
+            ret_val="$param"
+          fi
           # Remove text after the first whitespace character
           ret_val=$(echo "$ret_val" | sed -e 's/\s.*//')
           ;;
@@ -106,8 +136,8 @@ eval_suffix() {
 eval_arch() {
   ret_val="amd64"
   while [ $# -gt 0 ]; do
-    if echo "$1" | grep -F -qe 'arch=' ; then
-      param=$(echo "$1" | sed -e 's/arch=//' | tr '_' '-')
+    if echo "$1" | grep -qe '^arch=' ; then
+      param=$(echo "${1##*=}" | tr '_' '-')
       case $param in
         amd64 | x86 | x86-legacy)
           ret_val="$param"
@@ -119,3 +149,199 @@ eval_arch() {
 
   echo "$ret_val"
 }
+
+
+# Prints the specified WeiDU version (or "latest" keyword) to stdout, based on the given parameters.
+# Default: "latest"
+# Special version "latest" is placeholder for the latest available WeiDU version.
+# Pass $@ to the function.
+eval_weidu() {
+  ret_val="latest"
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^weidu=' ; then
+      ret_val="${1##*=}"
+    fi
+    shift
+  done
+
+  echo "$ret_val"
+}
+
+
+# Prints the extra string to stdout, based on the given parameters.
+# Default: (empty string)
+# Special characters are replaced by underscores.
+# Pass $@ to the function.
+eval_extra() {
+  ret_val=""
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^extra=' ; then
+      ret_val=$(normalize_filename "${1##*=}" | xargs)
+    fi
+    shift
+  done
+
+  if [ -n "$ret_val" ]; then
+    echo "-$ret_val"
+  fi
+}
+
+
+# Prints the naming scheme for mod package base name to stdout, based on given parameters.
+# Default: tp2
+# Supported schemes:
+# - tp2: Use the mod's tp2 filename as package base name.
+# - ini: Fetch name from PI metadata ini file if available.
+# Everything else is treated as a literal string.
+# Pass $@ to the function.
+eval_naming() {
+  ret_val="tp2"
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^naming=' ; then
+      param="${1##*=}"
+      case $param in
+        tp2 | ini)
+          ret_val="$param"
+          ;;
+        *)
+          ret_val=$(normalize_filename "$param" | xargs)
+          ;;
+      esac
+    fi
+    shift
+  done
+
+  echo "$ret_val"
+}
+
+
+# Used internally to print a normalized package name prefix to stdout.
+# Expects a single parameter: prefix
+_eval_prefix() {
+  if [ $# -gt 0 ]; then
+    v=$(normalize_filename "$1" | xargs)
+    if [ -n "$v" ]; then
+      if ! echo "$v" | grep -qe '^.*-$' ; then
+        v="${v}-"
+      fi
+    fi
+    echo "$v"
+  fi
+}
+
+
+# Prints the os-specific package name prefix to stdout, based on given parameters.
+# Default: win
+# Pass $@ to the function.
+eval_prefix_win() {
+  ret_val="win"
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^prefix_win=' ; then
+      ret_val="${1##*=}"
+    fi
+    shift
+  done
+
+  _eval_prefix "$ret_val"
+}
+
+
+# Prints the os-specific package name prefix to stdout, based on given parameters.
+# Default: lin
+# Pass $@ to the function.
+eval_prefix_lin() {
+  ret_val="lin"
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^prefix_lin=' ; then
+      ret_val="${1##*=}"
+    fi
+    shift
+  done
+
+  _eval_prefix "$ret_val"
+}
+
+
+# Prints the os-specific package name prefix to stdout, based on given parameters.
+# Default: osx
+# Pass $@ to the function.
+eval_prefix_mac() {
+  ret_val="osx"
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^prefix_mac=' ; then
+      ret_val="${1##*=}"
+    fi
+    shift
+  done
+
+  _eval_prefix "$ret_val"
+}
+
+
+#####################################
+#     Start of script execution     #
+#####################################
+
+# Base URL for the JSON release definition.
+weidu_url_base="https://api.github.com/repos/WeiDUorg/weidu/releases"
+
+# Earliest supported WeiDU version
+weidu_min="246"
+
+# Parameter check
+eval_arguments "$@" || exit 1
+
+# Supported types: iemod, windows, linux, macos
+archive_type=$(eval_type "$@")
+echo "Archive type: $archive_type"
+
+# Supported architectures: amd64, x86, x86-legacy
+arch=$(eval_arch "$@")
+if [ "$archive_type" = "iemod" ]; then
+  echo "Architecture: <platform-neutral>"
+else
+  echo "Architecture: $arch"
+fi
+
+# Supported suffixes: none, version, <literal string>
+suffix=$(eval_suffix "$@")
+if [ "$suffix" = "version" ]; then
+  echo "Suffix: <tp2 VERSION string>"
+elif [ -z "$suffix" ]; then
+  echo "Suffix: <none>"
+else
+  echo "Suffix: $suffix"
+fi
+
+# WeiDU versions: latest, <version number>
+weidu_version=$(eval_weidu "$@")
+if [ "$weidu_version" = "latest" ]; then
+  weidu_tag_name="$weidu_version"
+else
+  weidu_tag_name="tags/v${weidu_version}.00"
+fi
+echo "WeiDU version: $weidu_version"
+
+# Optional extra string
+extra=$(eval_extra "$@")
+if [ -n "$extra" ]; then
+  echo "Extra suffix: '$extra'"
+else
+  echo "Extra suffix: <none>"
+fi
+
+# Package naming schemes: tp2, ini, <literal string>
+naming=$(eval_naming "$@")
+case $naming in
+  tp2 | ini)
+    echo "Naming scheme: $naming"
+    ;;
+  *)
+    echo "Package base name: '$naming'"
+    ;;
+esac
+
+prefix_win=$(eval_prefix_win "$@")
+prefix_lin=$(eval_prefix_lin "$@")
+prefix_mac=$(eval_prefix_mac "$@")
+echo "OS-specific prefixes: '$prefix_win', '$prefix_lin', '$prefix_mac'"

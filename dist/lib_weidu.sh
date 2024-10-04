@@ -6,26 +6,22 @@
 # This script is not intended to be executed directly. #
 ########################################################
 
-# Base URL for the JSON release definition.
-weidu_url_base="https://api.github.com/repos/WeiDUorg/weidu/releases/tags"
-
-# Name of the WeiDU git tag to fetch WeiDU binaries from
-weidu_tag_name="v249.00"
-
 # Downloads the WeiDU binary matching the specified arguments and prints the name of the WeiDU binary to stdout.
-# Expected parameters: platform, architecture
+# Expected parameters: platform, architecture, git tag name
 # Returns with an error code on failure.
 download_weidu() {
+  weidu_tag_name="latest"
   weidu_os=""
-  weidu_arch="amd64"
+  if [ $# -gt 1 ]; then
+    weidu_arch="$2"
+  else
+    weidu_arch="amd64"
+  fi
   bin_ext=""
   if [ $# -gt 0 ]; then
     case $1 in
       windows)
         weidu_os="Windows"
-        if [ $# -gt 1 ]; then
-          weidu_arch="$2"
-        fi
         bin_ext=".exe"
         ;;
       linux)
@@ -33,23 +29,29 @@ download_weidu() {
         ;;
       macos)
         weidu_os="Mac"
-        weidu_arch=""
         ;;
     esac
   fi
 
-  if [ -n "$weidu_arch" ]; then
-    weidu_arch="-${weidu_arch}."
+  if [ $# -gt 2 ]; then
+    weidu_tag_name="$3"
   fi
 
   # Fetching compatible WeiDU package URL
+  echo "Fetching release info: ${weidu_url_base}/${weidu_tag_name}"
+  weidu_json=$(curl -s "${weidu_url_base}/${weidu_tag_name}")
+  if [ $? -ne 0 ]; then
+    printerr "ERROR: Could not retrieve WeiDU release information"
+    return 1
+  fi
+  weidu_tag_name=$(echo "$weidu_json" | jq -r '.tag_name')
+  
   weidu_url=""
-  for url in $(curl -s "${weidu_url_base}/${weidu_tag_name}" | jq -r '.assets[].browser_download_url'); do
-    if echo "$url" | grep -F -qe "$weidu_arch" ; then
-      if echo "$url" | grep -F -qe "-$weidu_os" ; then
-        weidu_url="$url"
-        break
-      fi
+  for url in $(echo "$weidu_json" | jq -r '.assets[].browser_download_url'); do
+    result=$(validate_weidu_url "$url" "$weidu_arch" "$weidu_os" "$weidu_tag_name")
+    if [ -n "$result" ]; then
+      weidu_url="$result"
+      break
     fi
   done
 
@@ -57,9 +59,10 @@ download_weidu() {
     printerr "ERROR: No compatible WeiDU package found."
     return 1
   fi
+  echo "WeiDU download URL: $weidu_url"
 
   # Downloading WeiDU archive
-  weidu_file="${weidu_url##*/}"
+  weidu_file=$(decode_url_string "${weidu_url##*/}")
   weidu_path="./$weidu_file"
   curl -L --retry-delay 3 --retry 3 "$weidu_url" >"$weidu_path"
   if [ $? -ne 0 ]; then
@@ -69,8 +72,7 @@ download_weidu() {
 
   # Extracting WeiDU binary
   weidu_bin="weidu$bin_ext"
-  unzip -jo "$weidu_path" "**/$weidu_bin"
-  if [ $? -ne 0 ]; then
+  if ! unpack_weidu "$weidu_path" "$weidu_bin" "$weidu_arch" "$weidu_tag_name" ; then
     printerr "ERROR: Could not extract WeiDU binary."
     rm -fv "$weidu_path"
     return 1
@@ -79,6 +81,78 @@ download_weidu() {
   rm -fv "$weidu_path"
 
   return 0
+}
+
+
+# Unpacks a specific file from the given WeiDU zip archive.
+# Expected parameters: weidu_path, weidu_bin, arch, tag_name
+unpack_weidu() {
+  if [ $# -gt 3 ]; then
+    weidu_path="$1"
+    weidu_bin="$2"
+    arch="$3"
+    version=$(echo "$4" | sed -re 's/^v([0-9]+).*/\1/')
+
+    if [ $version -lt 247 ]; then
+      # WeiDU 246: zip archive includes binaries for "amd64" and "x86"
+      if [ "$arch" != "amd64" ]; then
+        arch="x86"
+      fi
+      unzip -jo "$weidu_path" "**/$arch/$weidu_bin"
+    else
+      unzip -jo "$weidu_path" "**/$weidu_bin"
+    fi
+
+    if [ $? -ne 0 ]; then
+      return 1
+    fi
+    return 0
+  fi
+  return 1
+}
+
+
+# Validates the given URL with the specified parameters and returns it to stdout if successful.
+# Expected parameters: url, arch, os, tag_name
+validate_weidu_url() {
+  if [ $# -gt 3 ]; then
+    url="$1"
+    arch="$2"
+    os="$3"
+    version=$(echo "$4" | sed -re 's/^v([0-9]+).*/\1/')
+
+    if [ "$os" != "Windows" -a $version -gt 246 ]; then
+      arch=""
+    fi
+
+    if [ $version -le 246 ]; then
+      if echo "$url" | grep -F -qe "-$os" ; then
+        echo "$url"
+      fi
+    elif [ $version -eq 247 ]; then
+      if echo "$url" | grep -F -qe "-$os" ; then
+        if [ "$os" = "Windows" ]; then
+          # updating architecture name
+          if [ "$arch" = "x86" ]; then
+            # Note: URL string requires %-encoded special characters
+            arch="x86%2Bwin10"
+          elif [ "$arch" = "x86-legacy" ]; then
+            arch="x86."
+          fi
+        fi
+
+        if echo "$url" | grep -F -qe "-$arch"; then
+          echo "$url"
+        fi
+      fi
+    else
+      if echo "$url" | grep -F -qe "-$os" ; then
+        if echo "$url" | grep -F -qe "-$arch"; then
+          echo "$url"
+        fi
+      fi
+    fi
+  fi
 }
 
 
@@ -149,13 +223,13 @@ create_setup_binaries() {
 get_tp2_version() {
   if [ $# -gt 0 ]; then
     # Try string in tilde delimiters first
-    v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+~([^~]*).*/\1/')
+    v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+~([^~]*)~.*/\1/')
     if [ -z "$v" ]; then
       # Try string in double quotes
-      v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+"([^~]*).*/\1/')
+      v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+"([^"]*)".*/\1/')
       if [ -z "$v" ]; then
         # Try string in percent signs
-        v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+%([^~]*).*/\1/')
+        v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+%([^%]*)%.*/\1/')
         if [ -z "$v" ]; then
           # Finally, try string without delimiters
           v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+([^ \t]*).*/\1/')
@@ -175,7 +249,7 @@ get_tp2_version() {
     # Removing everything after the first whitespace character
     v=$(echo "$v" | xargs | sed -re 's/\s.*//')
     # Removing illegal characters for filenames
-    v=$(echo "$v" | sed -re 's/[:<>|*?$"/\\]/_/g')
+    v=$(normalize_filename "$v")
 
     if [ $# -gt 1 -a "$2" = "1" ]; then
       # Beautifying version string

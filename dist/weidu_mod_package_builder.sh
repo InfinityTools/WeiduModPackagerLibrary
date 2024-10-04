@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 1.0
+# Version 1.1
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -33,6 +33,29 @@
 # - illegal filename characters are replaced by underscores
 # Default suffix: version
 
+# extra={string}
+# An arbitrary string that will be appended after the package base name but before the version suffix.
+# Default: <empty string>
+
+# naming: {type_or_string}
+# This parameter defines the mod package base name.
+# Supported naming types: tp2, ini. Everything else is treated as a literal string.
+# - tp2: Uses the tp2 filename as base for generating the mod package base name.
+# - ini: Fetches the "name" definition from the associated Project Infinity metadata ini file.
+#        Falls back to "tp2" if not available.
+# Default: tp2
+
+# weidu: {type_or_number}
+# WeiDU version to use for the setup binaries for platform-specific zip archives.
+# Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
+# Currently supported versions: 246 or later.
+# Default: latest
+
+# prefix_win, prefix_lin, prefix_mac: {string}
+# Prefix string to use for platform-specific zip archive names.
+# Default: win, lin, osx (for Windows, Linux and macOS platforms respectively)
+
+
 # Including shellscript libraries
 DIR="${BASH_SOURCE%/*}"
 if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
@@ -47,31 +70,6 @@ source "$DIR/lib_weidu.sh" || exit 1
 #####################################
 
 root="$PWD"
-
-# Parameter check
-eval_arguments "$@" || exit 1
-
-# Supported types: iemod, windows, linux, macos
-archive_type=$(eval_type "$@")
-echo "Archive type: $archive_type"
-
-# Supported architectures: amd64, x86, x86-legacy
-arch=$(eval_arch "$@")
-if [ "$archive_type" = "iemod" ]; then
-  echo "Architecture: platform-neutral"
-else
-  echo "Architecture: $arch"
-fi
-
-# Supported suffixes: none, version, <literal string>
-suffix=$(eval_suffix "$@")
-if [ "$suffix" = "version" ]; then
-  echo "Suffix: <tp2 VERSION string>"
-elif [ -z "$suffix" ]; then
-  echo "Suffix: <none>"
-else
-  echo "Suffix: $suffix"
-fi
 
 # Returns colon-delimited path strings:
 # - relative base path for mod structure
@@ -88,6 +86,7 @@ mod_root=""
 tp2_file=""
 tp2_mod_path=""
 
+# splitting tp2_result elements
 old_ifs=$IFS
 IFS=:
 counter=0
@@ -126,7 +125,7 @@ if [ "$archive_type" != "iemod" ]; then
   bin_ext=$(get_bin_ext "$arch")
 
   # Downloading WeiDU binary
-  download_weidu "$archive_type" "$arch"
+  download_weidu "$archive_type" "$arch" "$weidu_tag_name"
   if [ $? -ne 0 ]; then
     exit 1
   fi
@@ -189,20 +188,57 @@ fi
 # Platform-specific prefix needed to prevent overwriting package files
 case $archive_type in
   windows)
-    os_prefix="win-"
+    os_prefix="$prefix_win"
     ;;
   linux)
-    os_prefix="lin-"
+    os_prefix="$prefix_lin"
     ;;
   macos)
-    os_prefix="mac-"
+    os_prefix="$prefix_mac"
     ;;
   *)
     os_prefix=""
 esac
 
-archive_filename=$(path_get_filename "$tp2_mod_path")
-archive_filename="${os_prefix}${archive_filename}${version_suffix}${archive_ext}"
+# Determine archive base name
+archive_filebase=""
+
+if [ "$naming" = "ini" ]; then
+  # Determine ini file
+  ini_path="$ini_file"
+  if [ -z "$ini_path" ]; then
+    namebase=$(path_get_filename "$tp2_mod_path")
+    if [ -f "$tp2_mod_path/${namebase}.ini" ]; then
+      ini_path="$tp2_mod_path/${namebase}.ini"
+    elif [ -f "$tp2_mod_path/setup-${namebase}.ini" ]; then
+      ini_path="$tp2_mod_path/setup-${namebase}.ini"
+    fi
+  fi
+
+  # Fetch "name" value from ini file
+  if [ -n "$ini_path" -a -f "$ini_path" ]; then
+    name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=\s*(.*)/\1/' | xargs)
+    if [ -n "$name" ]; then
+      archive_filebase=$(normalize_filename "$name" | tr " " "-")
+    fi
+  fi
+
+  if [ -z "$archive_filebase" ]; then
+    naming="tp2"
+  fi
+fi
+
+if [ "$naming" = "tp2" ]; then
+  archive_filebase=$(path_get_filename "$tp2_mod_path")
+fi
+
+if [ -z "$archive_filebase" ]; then
+  archive_filebase="$naming"
+fi
+echo "Package file base: $archive_filebase"
+
+
+archive_filename="${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
 archive_file_path="${root}/${archive_filename}"
 
 # Paths to add if defined:
@@ -217,7 +253,16 @@ echo "Mod archive: $archive_filename"
 
 # Exclude certain file and folder patterns from the zip archive
 echo "Generating 'zip_exclude.lst'"
-for arg in "**/.*" "**/*.bak" "**/*.iemod" "**/*.tmp" "**/*.temp" "**/Thumbs.db" "**/ehthumbs.db" "**/backup/*" "**/__macosx/*" "**/\$RECYCLE.BIN/*"; do
+for arg in "**/.*" \
+           "**/*.bak" \
+           "**/*.iemod" \
+           "**/*.tmp" \
+           "**/*.temp" \
+           "**/Thumbs.db" \
+           "**/ehthumbs.db" \
+           "**/backup/*" \
+           "**/__macosx/*" \
+           "**/\$RECYCLE.BIN/*"; do
   echo "$arg" >>zip_exclude.lst
 done
 
