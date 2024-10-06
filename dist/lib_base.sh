@@ -60,7 +60,53 @@ get_bin_ext() {
 }
 
 
+# Splits an array of string values into individual variables.
+# Expected parameters: string_array, delimiter, out_var1, out_var2, ...
+#   string_array: The string with multiple elements, separated by "delimiter".
+#   delimiter: Delimiter that separates each string element in "string_array".
+#   out_var1, out_var2, ...: A variable number of variable names which are initialized with the individual "string_array" elements.
+split_to_vars() {
+  if [ $# -gt 2 ]; then
+    _content="$1"
+    _delim="$2"
+    shift 2
+
+    old_ifs=$IFS
+    IFS=$_delim
+    for item in $_content; do
+      if [ $# -eq 0 ]; then
+        break
+      fi
+      eval "$1"='"$item"'
+      shift
+    done
+    IFS=$old_ifs
+
+    # clearing remaining variables
+    while [ $# -gt 0 ]; do
+      eval "$1"='""'
+      shift
+    done
+  fi
+}
+
+
+# Deletes the specified files.
+# Expected parameters: file1, ...
+clean_up() {
+  while [ $# -gt 0 ]; do
+    test -n "$1" && rm -rfv "$1"
+    shift
+  done
+}
+
+
+#####################################
+#     Start of script execution     #
+#####################################
+
 # Checking required tools
 for tool in "cat" "curl" "find" "grep" "jq" "unzip" "zip"; do
   which $tool >/dev/null || ( printerr "ERROR: Tool not found: $tool"; exit 1 )
 done
+

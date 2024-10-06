@@ -81,31 +81,8 @@ if [ -z "$tp2_result" ]; then
   exit 1
 fi
 
-# initializing mod paths
-mod_root=""
-tp2_file=""
-tp2_mod_path=""
-
-# splitting tp2_result elements
-old_ifs=$IFS
-IFS=:
-counter=0
-for item in $tp2_result; do
-  case $counter in
-    0)  # mod base path
-      mod_root="$item"
-      ;;
-    1)  # tp2 file path
-      tp2_file="$item"
-      ;;
-    2)  # optional mod folder path
-      tp2_mod_path="$item"
-      ;;
-  esac
-  counter=$((counter+1))
-done
-IFS=$old_ifs
-
+# splitting tp2_result into variables: mod_root, tp2_file, tp2_mod_path
+split_to_vars "$tp2_result" ":" "mod_root" "tp2_file" "tp2_mod_path"
 echo "mod root: $mod_root"
 echo "tp2 file: $tp2_file"
 if [ -n "$tp2_mod_path" ]; then
@@ -140,6 +117,7 @@ if [ "$archive_type" != "iemod" ]; then
   create_setup_binaries "$weidu_bin" "$tp2_file" "$archive_type"
   if [ $? -ne 0 ]; then
     printerr "ERROR: Could not create setup binaries."
+    clean_up "$weidu_bin"
     exit 1
   fi
 
@@ -266,36 +244,50 @@ for arg in "**/.*" \
   echo "$arg" >>zip_exclude.lst
 done
 
-zip -r "$archive_file_path" "$tp2_mod_path" --exclude @zip_exclude.lst || ( printerr "ERROR: Could not create zip archive \"$archive_filename\" from \"$tp2_mod_path\""; exit 1)
+zip -r "$archive_file_path" "$tp2_mod_path" --exclude @zip_exclude.lst || (
+  printerr "ERROR: Could not create zip archive \"$archive_filename\" from \"$tp2_mod_path\"";
+  clean_up "$command_file" "$setup_file" "$weidu_bin"
+  exit 1
+)
 rm -fv zip_exclude.lst
 
 if [ -n "$tp2_file" ]; then
-  zip -u "$archive_file_path" "$tp2_file" || ( printerr "ERROR: Could not add \"$tp2_file\" to zip archive \"$archive_filename\""; exit 1)
+  zip -u "$archive_file_path" "$tp2_file" || (
+    printerr "ERROR: Could not add \"$tp2_file\" to zip archive \"$archive_filename\""
+    clean_up "$command_file" "$setup_file" "$weidu_bin"
+    exit 1
+  )
 fi
 
 if [ -n "$ini_file" ]; then
-  zip -u "$archive_file_path" "$ini_file" || ( printerr "ERROR: Could not add \"$ini_file\" to zip archive \"$archive_filename\""; exit 1)
+  zip -u "$archive_file_path" "$ini_file" || (
+    printerr "ERROR: Could not add \"$ini_file\" to zip archive \"$archive_filename\""
+    clean_up "$command_file" "$setup_file" "$weidu_bin"
+    exit 1
+  )
 fi
 
 if [ -n "$setup_file" ]; then
-  zip -u "$archive_file_path" "$setup_file" || ( printerr "ERROR: Could not add \"$setup_file\" to zip archive \"$archive_filename\""; exit 1)
+  zip -u "$archive_file_path" "$setup_file" || (
+    printerr "ERROR: Could not add \"$setup_file\" to zip archive \"$archive_filename\""
+    clean_up "$command_file" "$setup_file" "$weidu_bin"
+    exit 1
+  )
 fi
 
 if [ -n "$command_file" ]; then
-  zip -u "$archive_file_path" "$command_file" || ( printerr "ERROR: Could not add \"$command_file\" to zip archive \"$archive_filename\""; exit 1)
+  zip -u "$archive_file_path" "$command_file" || (
+    printerr "ERROR: Could not add \"$command_file\" to zip archive \"$archive_filename\""
+    clean_up "$command_file" "$setup_file" "$weidu_bin"
+    exit 1
+  )
 fi
 
-# Cleaning up
-test -n "$command_file" && rm -fv "$command_file"
-test -n "$setup_file" && rm -fv "$setup_file"
-test -n "$weidu_bin" && rm -fv "$weidu_bin"
+# Cleaning up files
+clean_up "$command_file" "$setup_file" "$weidu_bin"
 
 # Back to the roots
 cd "$root"
-
-# Storing mod archive filename in file "PACKAGE_NAME"
-echo "Storing mod archive name in ./PACKAGE_NAME"
-echo "$archive_filename" >"PACKAGE_NAME"
 
 # Passing mod package name to the GitHub Action parameter "weidu_mod_package"
 echo "Passing mod package name to GitHub Action output..."

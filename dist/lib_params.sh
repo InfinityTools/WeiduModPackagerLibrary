@@ -204,7 +204,9 @@ eval_naming() {
           ret_val="$param"
           ;;
         *)
-          ret_val=$(normalize_filename "$param" | xargs)
+          if [ -n "$param" ]; then
+            ret_val=$(normalize_filename "$param" | xargs)
+          fi
           ;;
       esac
     fi
