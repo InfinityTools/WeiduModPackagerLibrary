@@ -104,7 +104,7 @@ find_tp2() {
     root_path="$1"
   fi
 
-  for tp2_path in $(find "$root_path" -type f -iname "*\.tp2"); do
+  for tp2_path in "$(find "$root_path" -type f -iname '*\.tp2')"; do
     tp2_path_lower=$(to_lower "$tp2_path")
 
     # Checking modern style tp2 location (mymod/[setup-]mymod.tp2)
@@ -133,13 +133,13 @@ find_tp2() {
     # Checking old style tp2 location ([setup-]mymod.tp2 in root folder)
     # Note: parsing BACKUP definitions may not handle unusual path constellations well, e.g. paths containing relative path placeholders
     # String delimited by tilde signs (~)
-    backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP' | sed -re 's/^\s*BACKUP\s+~([^~]+)~.*/\1/')
+    backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+~' | sed -re 's/^\s*BACKUP\s+~([^~]+)~.*/\1/')
     if [ -z "$backup_path" ]; then
       # String delimited by double quotes (")
-      backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP' | sed -re 's/^\s*BACKUP\s+"([^"]+)".*/\1/')
+      backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+"' | sed -re 's/^\s*BACKUP\s+"([^"]+)".*/\1/')
       if [ -z "$backup_path" ]; then
         # String delimited by percent signs (%)
-        backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP' | sed -re 's/^\s*BACKUP\s+%([^%]+)%.*/\1/')
+        backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+%' | sed -re 's/^\s*BACKUP\s+%([^%]+)%.*/\1/')
         if [ -z "$backup_path" ]; then
           continue
         fi

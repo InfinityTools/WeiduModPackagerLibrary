@@ -109,4 +109,3 @@ clean_up() {
 for tool in "cat" "curl" "find" "grep" "jq" "unzip" "zip"; do
   which $tool >/dev/null || ( printerr "ERROR: Tool not found: $tool"; exit 1 )
 done
-

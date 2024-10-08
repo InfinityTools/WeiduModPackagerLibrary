@@ -210,9 +210,9 @@ create_setup_binaries() {
     # macOS-specific
     if [ -n "$command_file" ]; then
       echo "Creating script: $command_file"
-      echo 'command_path=${0%/*}' >"$command_file"
-      echo 'cd "$command_path"' >>"$command_file"
-      echo "./${setup_file}" >>"$command_file"
+      echo 'cd "${0%/*}"' > "$command_file"
+      echo 'ScriptName="${0##*/}"' >> "$command_file"
+      echo '"./${ScriptName%.*}"' >> "$command_file"
       chmod -v 755 "$command_file"
     fi
 
