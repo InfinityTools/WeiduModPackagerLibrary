@@ -172,8 +172,9 @@ get_setup_binary_name() {
     if [ "$2" = "windows" ]; then
       ext=".exe"
     fi
+    prefix=$(path_get_tp2_prefix "$1")
     name=$(path_get_tp2_name "$1")
-    name="setup-$name$ext"
+    name="$prefix$name$ext"
     echo "$name"
   fi
 }
@@ -184,8 +185,9 @@ get_setup_binary_name() {
 get_setup_command_name() {
   if [ $# -gt 1 ]; then
     if [ "$2" = "macos" ]; then
+      prefix=$(path_get_tp2_prefix "$1")
       name=$(path_get_tp2_name "$1")
-      name="setup-${name}.command"
+      name="$prefix${name}.command"
       echo "$name"
     fi
   fi

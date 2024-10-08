@@ -74,6 +74,20 @@ path_get_tp2_name() {
 }
 
 
+# Prints the tp2 filename setup prefix to stdout.
+# Default: "setup-" 
+path_get_tp2_prefix() {
+  prefix="setup-"
+  if [ $# -gt 0 ]; then
+    v=$(path_get_filebase "$1")
+    if echo "$v" | grep -qie "^setup-" ; then
+      prefix="${v:0:6}"
+    fi
+  fi
+  echo "$prefix"
+}
+
+
 # Scans a path for files of a specified name pattern and prints the first match to stdout if available.
 # Expected parameters: search path, "find" name pattern
 find_file() {
