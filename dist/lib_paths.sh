@@ -27,7 +27,11 @@ path_get_root() {
 # Prints the parent path of the specified parameter to stdout.
 path_get_parent_path() {
   if [ $# -gt 0 ]; then
-    v="${1%/*}"
+    if echo "$1" | grep -F -qe '/' ; then
+      v="${1%/*}"
+    else
+      v=""
+    fi
     echo "$v"
   fi
 }
@@ -71,6 +75,23 @@ path_get_tp2_name() {
     fi
     echo "$v"
   fi
+}
+
+# Prints the directory level of the specified path to stdout.
+# Example 1: "./mymod.tp2" returns 1
+# Example 2: "./mymod/mymod.tp2" return 2
+# Example 3: "./subfolder/mymod/mymod.tp2" return 3
+path_get_directory_level() {
+  level=0
+  if [ $# -gt 0 ]; then
+    path=$(echo "$1" | xargs)
+    path="${path#./*}"
+    while [ -n "$path" ]; do
+      path=$(path_get_parent_path "$path")
+      level=$((level+1))
+    done
+  fi
+  echo $level
 }
 
 
@@ -118,7 +139,15 @@ find_tp2() {
     root_path="$1"
   fi
 
-  for tp2_path in "$(find "$root_path" -type f -iname '*\.tp2')"; do
+  shopt -s globstar
+  tp2_array=""
+  for tp2_path in $root_path/**/*.tp2; do
+    tp2_path="./${tp2_path#$root_path/}"
+    dlevel=$(path_get_directory_level "$tp2_path")
+    if [ $dlevel -gt 2 ]; then
+      printerr "Skipping: ${tp2_path}"
+      continue
+    fi
     tp2_path_lower=$(to_lower "$tp2_path")
 
     # Checking modern style tp2 location (mymod/[setup-]mymod.tp2)
@@ -140,8 +169,11 @@ find_tp2() {
       # rebasing tp2 path
       tp2_path="./${tp2_path//$parent_path\//}"
 
-      echo "${parent_path}${delimiter}${tp2_path}${delimiter}"
-      return 0
+      if [ -n "$tp2_array" ]; then
+        tp2_array="$tp2_array$delimiter"
+      fi
+      tp2_array="$tp2_array$parent_path$delimiter$tp2_path$delimiter"
+      continue
     fi
 
     # Checking old style tp2 location ([setup-]mymod.tp2 in root folder)
@@ -177,8 +209,10 @@ find_tp2() {
       mod_folder_path=$(path_get_parent_path "$tp2_path")
       mod_folder_path="$mod_folder_path/$mod_folder"
 
-      echo "${parent_path}${delimiter}${tp2_path}${delimiter}${mod_folder_path}"
-      return 0
+      tp2_array="$tp2_array$parent_path$delimiter$tp2_path$delimiter$mod_folder_path"
     fi
   done
+  shopt -u globstar
+
+  echo "$tp2_array"
 }

@@ -324,6 +324,10 @@ else
 fi
 echo "WeiDU version: $weidu_version"
 
+# WeiDU binary name
+bin_ext=$(get_bin_ext "$archive_type")
+weidu_bin="weidu$bin_ext"
+
 # Optional extra string
 extra=$(eval_extra "$@")
 if [ -n "$extra" ]; then

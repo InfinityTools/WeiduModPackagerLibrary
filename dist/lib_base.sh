@@ -50,7 +50,7 @@ decode_url_string() {
 
 
 # Returns the file extension used by executables.
-# Expected parameters: architecture
+# Expected parameters: platform
 get_bin_ext() {
   if [ $# -gt 0 ]; then
     if [ "$1" = "windows" ]; then
@@ -63,13 +63,16 @@ get_bin_ext() {
 # Splits an array of string values into individual variables.
 # Expected parameters: string_array, delimiter, out_var1, out_var2, ...
 #   string_array: The string with multiple elements, separated by "delimiter".
+#   remainder: The remaining string content of "string_array" when the operation is completed.
 #   delimiter: Delimiter that separates each string element in "string_array".
 #   out_var1, out_var2, ...: A variable number of variable names which are initialized with the individual "string_array" elements.
 split_to_vars() {
-  if [ $# -gt 2 ]; then
+  if [ $# -gt 3 ]; then
     _content="$1"
-    _delim="$2"
-    shift 2
+    _output="$_content"
+    _outvar="$2"
+    _delim="$3"
+    shift 3
 
     old_ifs=$IFS
     IFS=$_delim
@@ -78,6 +81,11 @@ split_to_vars() {
         break
       fi
       eval "$1"='"$item"'
+      if echo "$_output" | grep -F -qe "$_delim" ; then
+        _output="${_output#$item$_delim}"
+      else
+        _output=""
+      fi
       shift
     done
     IFS=$old_ifs
@@ -87,6 +95,8 @@ split_to_vars() {
       eval "$1"='""'
       shift
     done
+
+    eval "$_outvar"='"$_output"'
   fi
 }
 

@@ -17,12 +17,10 @@ download_weidu() {
   else
     weidu_arch="amd64"
   fi
-  bin_ext=""
   if [ $# -gt 0 ]; then
     case $1 in
       windows)
         weidu_os="Windows"
-        bin_ext=".exe"
         ;;
       linux)
         weidu_os="Linux"
@@ -71,7 +69,6 @@ download_weidu() {
   fi
 
   # Extracting WeiDU binary
-  weidu_bin="weidu$bin_ext"
   if ! unpack_weidu "$weidu_path" "$weidu_bin" "$weidu_arch" "$weidu_tag_name" ; then
     printerr "ERROR: Could not extract WeiDU binary."
     clean_up "$weidu_path"
