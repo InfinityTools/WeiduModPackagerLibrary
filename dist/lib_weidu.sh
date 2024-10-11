@@ -252,6 +252,11 @@ get_tp2_version() {
       v=""
     fi
 
+    # Any whitespace between 'v' prefix and version number will be removed
+    if echo "$v" | xargs | grep -qie '^v\?\s\+[0-9]\+' ; then
+      v=$(echo "$v" | xargs | sed -re 's/^[vV]\s+/v/')
+    fi
+
     # Removing everything after the first whitespace character
     v=$(echo "$v" | xargs | sed -re 's/\s.*//')
     # Removing illegal characters for filenames
@@ -259,7 +264,12 @@ get_tp2_version() {
 
     if [ $# -gt 1 -a "$2" = "1" ]; then
       # Beautifying version string
+      if echo "$v" | grep -qe '^V[0-9]\+' ; then
+        # Use lowercased 'v' prefix for version string
+        v="v${v:1}"
+      fi
       if echo "$v" | grep -qe '^[0-9]\+' ; then
+        # Version string uses 'v' prefix
         v="v$v"
       fi
     fi
