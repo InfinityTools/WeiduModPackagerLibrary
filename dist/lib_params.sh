@@ -42,6 +42,8 @@ eval_arguments() {
         ;;
       prefix_mac=*)
         ;;
+      tp2_name=*)
+        ;;
       *)
         printerr "ERROR: Invalid argument: $1"
         return 1
@@ -65,7 +67,7 @@ eval_type() {
   ret_val="iemod"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^type=' ; then
-      param="${1##*=}"
+      param="${1#*=}"
       case $param in
         iemod | windows | linux | macos)
           ret_val="$param"
@@ -92,7 +94,7 @@ eval_suffix() {
   ret_val="version"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^suffix=' ; then
-      param="${1##*=}"
+      param="${1#*=}"
       case $param in
         none)
           ret_val=""
@@ -111,8 +113,6 @@ eval_suffix() {
             # No delimiters detected
             ret_val="$param"
           fi
-          # Remove text after the first whitespace character
-          ret_val=$(echo "$ret_val" | sed -e 's/\s.*//')
           ;;
       esac
     fi
@@ -137,7 +137,7 @@ eval_arch() {
   ret_val="amd64"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^arch=' ; then
-      param=$(echo "${1##*=}" | tr '_' '-')
+      param=$(echo "${1#*=}" | tr '_' '-')
       case $param in
         amd64 | x86 | x86-legacy)
           ret_val="$param"
@@ -159,7 +159,7 @@ eval_weidu() {
   ret_val="latest"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^weidu=' ; then
-      ret_val="${1##*=}"
+      ret_val="${1#*=}"
     fi
     shift
   done
@@ -176,7 +176,7 @@ eval_extra() {
   ret_val=""
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^extra=' ; then
-      ret_val=$(normalize_filename "${1##*=}" | xargs)
+      ret_val=$(normalize_filename "${1#*=}" | xargs)
     fi
     shift
   done
@@ -198,7 +198,7 @@ eval_naming() {
   ret_val="tp2"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^naming=' ; then
-      param="${1##*=}"
+      param="${1#*=}"
       case $param in
         tp2 | ini)
           ret_val="$param"
@@ -239,7 +239,7 @@ eval_prefix_win() {
   ret_val="win"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_win=' ; then
-      ret_val="${1##*=}"
+      ret_val="${1#*=}"
     fi
     shift
   done
@@ -255,7 +255,7 @@ eval_prefix_lin() {
   ret_val="lin"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_lin=' ; then
-      ret_val="${1##*=}"
+      ret_val="${1#*=}"
     fi
     shift
   done
@@ -271,12 +271,36 @@ eval_prefix_mac() {
   ret_val="osx"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_mac=' ; then
-      ret_val="${1##*=}"
+      ret_val="${1#*=}"
     fi
     shift
   done
 
   _eval_prefix "$ret_val"
+}
+
+
+# Prints the tp2 filename (without path, "setup-" prefix and ".tp2" extension) to stdout,
+# based on the given parameters.
+# Default: (empty string)
+eval_tp2_name() {
+  ret_val=""
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^tp2_name=' ; then
+      param="${1#*=}"
+      param="${param##*/}"
+      if echo "$param" | grep -qie '\.tp2$' ; then
+        param="${param%.*}"
+      fi
+      if echo "$param" | grep -qie '^setup-' ; then
+        param="${param:6}"
+      fi
+      ret_val="$param"
+    fi
+    shift
+  done
+
+  echo "$ret_val"
 }
 
 
@@ -347,7 +371,16 @@ case $naming in
     ;;
 esac
 
+# Name prefix for platform-dependent mod archives
 prefix_win=$(eval_prefix_win "$@")
 prefix_lin=$(eval_prefix_lin "$@")
 prefix_mac=$(eval_prefix_mac "$@")
 echo "OS-specific prefixes: '$prefix_win', '$prefix_lin', '$prefix_mac'"
+
+# Mod to include in archive (as tp2 filebase)
+mod_filter=$(eval_tp2_name "$@")
+if [ -n "$mod_filter" ]; then
+  echo "Mod filter: $mod_filter"
+else
+  echo "Mod filter: <none>"
+fi

@@ -145,7 +145,7 @@ find_tp2() {
     tp2_path="./${tp2_path#$root_path/}"
     dlevel=$(path_get_directory_level "$tp2_path")
     if [ $dlevel -gt 2 ]; then
-      printerr "Skipping: ${tp2_path}"
+      printerr "Skipping: $tp2_path"
       continue
     fi
     tp2_path_lower=$(to_lower "$tp2_path")
@@ -159,6 +159,14 @@ find_tp2() {
 
     # tp2 filename without extension and "setup-" prefix
     tp2_file_base=$(path_get_tp2_name "$tp2_path_lower")
+
+    # Applying mod filter
+    if [ -n "$mod_filter" ]; then
+      if [ "${mod_filter,,}" != "$tp2_file_base" ]; then
+        printerr "Filter does not match. Skipping: $tp2_path"
+        continue
+      fi
+    fi
 
     # Modern style tp2 file found?
     if [ "$tp2_file_base" = "$tp2_parent" ]; then

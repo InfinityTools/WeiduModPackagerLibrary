@@ -21,7 +21,7 @@ printerr() {
 # Prints a lower-cased version of the specified string parameter to stdout.
 to_lower() {
   if [ $# -gt 0 ]; then
-    echo "$1" | tr '[:upper:]' '[:lower:]'
+    echo "${1,,}"
   fi
 }
 
@@ -108,6 +108,38 @@ clean_up() {
     test -n "$1" && rm -rfv "$1"
     shift
   done
+}
+
+
+# Cleans up and normalizes a given version string and prints it to stdout.
+# Expected parameters: version_string
+normalize_version() {
+  if [ $# -gt 0 ]; then
+    v=$(echo "$1" | xargs)
+
+    # Any whitespace between 'v' prefix and version number will be removed
+    if echo "$v" | grep -qie '^v\?\s\+[0-9]\+' ; then
+      v=$(echo "$v" | sed -re 's/^[vV]\s+/v/')
+    fi
+
+    # Removing everything after the first whitespace character
+    v=$(echo "$v" | sed -re 's/\s.*//')
+
+    # Removing illegal characters for filenames
+    v=$(normalize_filename "$v")
+
+    # Use lowercased 'v' prefix for version string
+    if echo "$v" | grep -qe '^V[0-9]\+' ; then
+      v="v${v:1}"
+    fi
+
+    # Version string uses 'v' prefix
+    if echo "$v" | grep -qe '^[0-9]\+' ; then
+      v="v$v"
+    fi
+
+    echo "$v"
+  fi
 }
 
 

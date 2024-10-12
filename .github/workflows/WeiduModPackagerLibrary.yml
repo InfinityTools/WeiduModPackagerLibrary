@@ -52,6 +52,16 @@ on:
         type: string
         default: 'tp2'
 
+
+      # This parameter defines the tp2 filename of the mod to include in the mod package.
+      # Specifying this option is only useful if a project contains multiple mods
+      # (e.g. EET, EET_end, EET_gui).
+      tp2_name:
+        description: 'Include only mod that matches the specified tp2 filename.'
+        required: false
+        type: string
+        default: ''
+
       # WeiDU version to use for the setup binaries for platform-specific zip archives.
       # Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
       # Currently supported versions: 246 or later.
@@ -135,6 +145,7 @@ jobs:
               "weidu=${{ inputs.weidu_version }}" \
               "extra=${{ inputs.extra }}" \
               "naming=${{ inputs.naming }}" \
+              "tp2_name=${{ inputs.tp2_name }}" \
               "prefix_win=${{ inputs.prefix_windows }}" \
               "prefix_lin=${{ inputs.prefix_linux }}" \
               "prefix_mac=${{ inputs.prefix_macos }}" || exit 1
