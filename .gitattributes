@@ -1,1 +1,25 @@
-*.sh text eol=lf
+# Unix shell scripts require LF line ending
+*.command text eol=lf
+*.sh      text eol=lf
+
+# Windows scripts require CR LF line ending
+*.ahk  text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Store these text files with LF line ending in the repo object database
+# Auto convert them to CR LF for working directories on Windows
+*.htm  text
+*.html text
+*.ini  text
+*.lua  text
+*.md   text
+*.sql  text
+*.txt  text
+*.yaml text
+*.yml  text
+
+# Git-related metadata
+.gitattributes text
+.gitignore     text
