@@ -10,14 +10,6 @@
 special_characters_regex='[<>:|*?$"/\\]'
 
 
-# Prints a specified message to stderr.
-printerr() {
-  if [ $# -gt 0 ]; then
-    printf "%s\n" "$*" >&2
-  fi
-}
-
-
 # Prints a lower-cased version of the specified string parameter to stdout.
 to_lower() {
   if [ $# -gt 0 ]; then

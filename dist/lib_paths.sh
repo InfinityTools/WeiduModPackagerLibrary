@@ -224,3 +224,80 @@ find_tp2() {
 
   echo "$tp2_array"
 }
+
+
+# Generates the mod archive filename from the given parameters and global variables
+# and prints it to stdout.
+# Expected parameters: tp2_mod_path, version_suffix, ini_file
+create_package_name() {
+  if [ $# -gt 0 ]; then
+    tp2_mod_path="$1"
+  fi
+
+  if [ $# -gt 1 ]; then
+    version_suffix="$2"
+  fi
+
+  if [ $# -gt 2 ]; then
+    ini_file="$3"
+  fi
+
+  if [ "$archive_type" = "iemod" ]; then
+    archive_ext=".iemod"
+  else
+    archive_ext=".zip"
+  fi
+
+  # Platform-specific prefix needed to prevent overwriting package files
+  case "$archive_type" in
+    windows)
+      os_prefix="$prefix_win"
+      ;;
+    linux)
+      os_prefix="$prefix_lin"
+      ;;
+    macos)
+      os_prefix="$prefix_mac"
+      ;;
+    *)
+      os_prefix=""
+  esac
+
+  # Determine archive base name
+  archive_filebase=""
+
+  if [ "$naming" = "ini" ]; then
+    # Determine ini file
+    ini_path="$ini_file"
+    if [ -z "$ini_path" ]; then
+      namebase=$(path_get_filename "$tp2_mod_path")
+      if [ -f "$tp2_mod_path/${namebase}.ini" ]; then
+        ini_path="$tp2_mod_path/${namebase}.ini"
+      elif [ -f "$tp2_mod_path/setup-${namebase}.ini" ]; then
+        ini_path="$tp2_mod_path/setup-${namebase}.ini"
+      fi
+    fi
+
+    # Fetch "name" value from ini file
+    if [ -n "$ini_path" -a -f "$ini_path" ]; then
+      name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=\s*(.*)/\1/' | xargs)
+      if [ -n "$name" ]; then
+        archive_filebase=$(normalize_filename "$name" | tr " " "-")
+      fi
+    fi
+
+    if [ -z "$archive_filebase" ]; then
+      naming="tp2"
+    fi
+  fi
+
+  if [ "$naming" = "tp2" ]; then
+    archive_filebase=$(path_get_filename "$tp2_mod_path")
+  fi
+
+  if [ -z "$archive_filebase" ]; then
+    archive_filebase="$naming"
+  fi
+
+  echo "${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
+}

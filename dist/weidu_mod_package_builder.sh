@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 1.2
+# Version 1.3
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -62,20 +62,44 @@
 # Default: <empty string>
 
 
-# Including shellscript libraries
-DIR="${BASH_SOURCE%/*}"
-if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
-source "$DIR/lib_base.sh" || exit 1
-source "$DIR/lib_params.sh" || exit 1
-source "$DIR/lib_paths.sh" || exit 1
-source "$DIR/lib_weidu.sh" || exit 1
-
-
 #####################################
 #     Start of script execution     #
 #####################################
 
+# Prints a specified message to stderr.
+printerr() {
+  if [ $# -gt 0 ]; then
+    printf "%s\n" "$*" >&2
+  fi
+}
+
+# Including shell script libraries
+DIR="${BASH_SOURCE%/*}"
+if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
+for name in "lib_base" "lib_params" "lib_paths" "lib_weidu"; do
+  source "$DIR/${name}.sh"
+  if [ $? -ne 0 ]; then printerr "ERROR: Unable to source script: ${name}.sh"; exit 1; fi
+done
+
 root="$PWD"
+
+# Files to clean up after operation is completed
+removables=()
+
+# Paths to include in mod package if defined:
+# - tp2_mod_path: path of mod folder
+# - tp2_file:     path of separate tp2 file (old-style mods only)
+# - ini_file:     path of separate ini file (old-style mods only; defined only if "tp2_file" is set)
+# - setup_file:   path of setup binary
+# - command_file: path of setup .command script (macOS only)
+
+# Filenames for zip inclusion and exclusion lists
+zip_include="zip_include.lst"
+zip_exclude="zip_exclude.lst"
+
+# Filename and full path of the mod package to create
+archive_filename=""
+archive_file_path=""
 
 # Returns colon-delimited path strings:
 # - relative base path for mod structure
@@ -88,9 +112,7 @@ if [ -z "$tp2_result" ]; then
   exit 1
 fi
 
-archive_filename=""
-archive_file_path=""
-
+# Loop through every potential mod
 while [ -n "$tp2_result" ]; do
   # splitting tp2_result into variables: mod_root, tp2_file, tp2_mod_path
   split_to_vars "$tp2_result" "tp2_result" ":" "mod_root" "tp2_file" "tp2_mod_path"
@@ -121,6 +143,7 @@ while [ -n "$tp2_result" ]; do
         printerr "ERROR: Could not find WeiDU binary on the system."
         exit 1
       fi
+      removables+=("$weidu_bin")
       echo "WeiDU binary: $weidu_bin"
     fi
 
@@ -133,9 +156,14 @@ while [ -n "$tp2_result" ]; do
     fi
 
     setup_file=$(get_setup_binary_name "$tp2_file" "$archive_type")
-    command_file=$(get_setup_command_name "$tp2_file" "$archive_type")
+    echo "${setup_file}" >>"$zip_include"
+    removables+=("$setup_file")
     echo "Setup name: $setup_file"
+
+    command_file=$(get_setup_command_name "$tp2_file" "$archive_type")
     if [ -n "$command_file" ]; then
+      echo "${command_file}" >>"$zip_include"
+      removables+=("$command_file")
       echo "Command script name: $command_file"
     fi
   fi
@@ -147,7 +175,7 @@ while [ -n "$tp2_result" ]; do
   fi
   version_suffix=$(normalize_version "$version_suffix")
   echo "Version suffix: $version_suffix"
-  if [ -n "$version_suffix" ]; then
+  if [ -n "$version_suffix" -a "${version_suffix:0:1}" != "-" ]; then
     version_suffix="-$version_suffix"
   fi
 
@@ -155,6 +183,11 @@ while [ -n "$tp2_result" ]; do
   if [ -z "$tp2_mod_path" ]; then
     tp2_mod_path=$(path_get_parent_path "$tp2_file")
     tp2_file=""
+  fi
+
+  echo "${tp2_mod_path}/**" >>"$zip_include"
+  if [ -n "$tp2_file" ]; then
+    echo "${tp2_file}" >>"$zip_include"
   fi
 
   # PI meta file may exist in the root folder for old-style mods
@@ -168,149 +201,40 @@ while [ -n "$tp2_result" ]; do
     ini_file=$(find_file "$file_root" "*${file_base}.ini")
   fi
 
-  # Assembling mod archive filename
-  if [ "$archive_type" = "iemod" ]; then
-    archive_ext=".iemod"
-  else
-    archive_ext=".zip"
-  fi
-
-  # Platform-specific prefix needed to prevent overwriting package files
-  case $archive_type in
-    windows)
-      os_prefix="$prefix_win"
-      ;;
-    linux)
-      os_prefix="$prefix_lin"
-      ;;
-    macos)
-      os_prefix="$prefix_mac"
-      ;;
-    *)
-      os_prefix=""
-  esac
-
-  # Determine archive base name
-  archive_filebase=""
-
-  if [ "$naming" = "ini" ]; then
-    # Determine ini file
-    ini_path="$ini_file"
-    if [ -z "$ini_path" ]; then
-      namebase=$(path_get_filename "$tp2_mod_path")
-      if [ -f "$tp2_mod_path/${namebase}.ini" ]; then
-        ini_path="$tp2_mod_path/${namebase}.ini"
-      elif [ -f "$tp2_mod_path/setup-${namebase}.ini" ]; then
-        ini_path="$tp2_mod_path/setup-${namebase}.ini"
-      fi
-    fi
-
-    # Fetch "name" value from ini file
-    if [ -n "$ini_path" -a -f "$ini_path" ]; then
-      name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=\s*(.*)/\1/' | xargs)
-      if [ -n "$name" ]; then
-        archive_filebase=$(normalize_filename "$name" | tr " " "-")
-      fi
-    fi
-
-    if [ -z "$archive_filebase" ]; then
-      naming="tp2"
-    fi
-  fi
-
-  if [ "$naming" = "tp2" ]; then
-    archive_filebase=$(path_get_filename "$tp2_mod_path")
-  fi
-
-  if [ -z "$archive_filebase" ]; then
-    archive_filebase="$naming"
-  fi
-  echo "Package file base: $archive_filebase"
-
-
-  if [ -z "$archive_filename" ]; then
-    update_zip=0
-    archive_filename="${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
-    archive_file_path="${root}/${archive_filename}"
-  else
-    update_zip=1
-  fi
-
-  # Paths to add if defined:
-  # - tp2_mod_path: path of mod folder
-  # - tp2_file:     path of separate tp2 file (old-style mods only)
-  # - ini_file:     path of separate ini file (old-style mods only; defined only if "tp2_file" is set)
-  # - setup_file:   path of setup binary
-  # - command_file: path of setup .command script (macOS only)
-
-  # Creating mod package
-  echo "Mod archive: $archive_filename"
-
-  # Exclude certain file and folder patterns from the zip archive
-  echo "Generating 'zip_exclude.lst'"
-  for arg in "**/.*" \
-             "**/*.bak" \
-             "**/*.iemod" \
-             "**/*.tmp" \
-             "**/*.temp" \
-             "**/Thumbs.db" \
-             "**/ehthumbs.db" \
-             "**/backup/*" \
-             "**/__macosx/*" \
-             "**/\$RECYCLE.BIN/*"; do
-    echo "$arg" >>zip_exclude.lst
-  done
-
-  if [ $update_zip -eq 0 ]; then
-    zip_cmd="zip -r"
-  else
-    zip_cmd="zip -ur"
-  fi
-  $zip_cmd "$archive_file_path" "$tp2_mod_path" --exclude @zip_exclude.lst || (
-    printerr "ERROR: Could not create zip archive \"$archive_filename\" from \"$tp2_mod_path\"";
-    clean_up "zip_exclude.lst" "$command_file" "$setup_file" "$weidu_bin"
-    exit 1
-  )
-  clean_up "zip_exclude.lst"
-
-  if [ -n "$tp2_file" ]; then
-    zip -u "$archive_file_path" "$tp2_file" || (
-      printerr "ERROR: Could not add \"$tp2_file\" to zip archive \"$archive_filename\""
-      clean_up "$command_file" "$setup_file" "$weidu_bin"
-      exit 1
-    )
-  fi
-
   if [ -n "$ini_file" ]; then
-    zip -u "$archive_file_path" "$ini_file" || (
-      printerr "ERROR: Could not add \"$ini_file\" to zip archive \"$archive_filename\""
-      clean_up "$command_file" "$setup_file" "$weidu_bin"
-      exit 1
-    )
+    echo "${ini_file}" >>"$zip_include"
   fi
 
-  if [ -n "$setup_file" ]; then
-    zip -u "$archive_file_path" "$setup_file" || (
-      printerr "ERROR: Could not add \"$setup_file\" to zip archive \"$archive_filename\""
-      clean_up "$command_file" "$setup_file" "$weidu_bin"
-      exit 1
-    )
+  # Assembling mod archive filename and path
+  if [ -z "$archive_filename" ]; then
+    archive_filename=$(create_package_name "$tp2_mod_path" "$version_suffix" "$ini_file")
+    archive_file_path="${root}/${archive_filename}"
   fi
-
-  if [ -n "$command_file" ]; then
-    zip -u "$archive_file_path" "$command_file" || (
-      printerr "ERROR: Could not add \"$command_file\" to zip archive \"$archive_filename\""
-      clean_up "$command_file" "$setup_file" "$weidu_bin"
-      exit 1
-    )
-  fi
-
-  # Cleaning up files
-  clean_up "$command_file" "$setup_file"
 done
 
-# Cleaning up remaining files
-clean_up "$weidu_bin"
+# Creating mod package
+echo "Mod archive: $archive_filename"
+
+# Exclude certain file and folder patterns from the zip archive
+cat << "EOF" > "$zip_exclude"
+**/.*
+**/*.bak
+**/*.iemod
+**/*.tmp
+**/*.temp
+**/Thumbs.db
+**/ehthumbs.db
+**/backup/*
+**/__macosx/*
+**/$RECYCLE.BIN/*
+EOF
+removables+=("$zip_include" "$zip_exclude")
+
+# Creating zip archive
+zip -r "$archive_file_path" . -i "@$zip_include" -x "@$zip_exclude"
+
+# Cleaning up files
+clean_up "${removables[@]}"
 
 # Back to the roots
 cd "$root"
