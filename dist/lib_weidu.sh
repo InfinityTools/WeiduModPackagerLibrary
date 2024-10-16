@@ -6,17 +6,16 @@
 # This script is not intended to be executed directly. #
 ########################################################
 
-# Downloads the WeiDU binary matching the specified arguments and prints the name of the WeiDU binary to stdout.
-# Expected parameters: platform, architecture, git tag name
+# Downloads the WeiDU binary matching the specified arguments.
+# Expected parameters: platform, architecture (amd64), git tag name (latest), weidu_binary ($weidu_bin), target directory (.)
 # Returns with an error code on failure.
 download_weidu() {
-  weidu_tag_name="latest"
+(
+  weidu_arch="${2:-amd64}"
+  weidu_tag="${3:-latest}"
+  weidu_name="${4:-$weidu_bin}"
+  dest_dir="${5:-.}"
   weidu_os=""
-  if [ $# -gt 1 ]; then
-    weidu_arch="$2"
-  else
-    weidu_arch="amd64"
-  fi
   if [ $# -gt 0 ]; then
     case $1 in
       windows)
@@ -31,22 +30,23 @@ download_weidu() {
     esac
   fi
 
-  if [ $# -gt 2 ]; then
-    weidu_tag_name="$3"
-  fi
-
   # Fetching compatible WeiDU package URL
-  echo "Fetching release info: ${weidu_url_base}/${weidu_tag_name}"
-  weidu_json=$(curl -s "${weidu_url_base}/${weidu_tag_name}")
+  if [ "$weidu_tag" = "latest" ]; then
+    weidu_json_url="${weidu_url_base}/${weidu_tag}"
+  else
+    weidu_json_url="${weidu_url_base}/tags/v${weidu_tag}.00"
+  fi
+  echo "Fetching release info: $weidu_json_url"
+  weidu_json=$(curl -s "$weidu_json_url")
   if [ $? -ne 0 ]; then
     printerr "ERROR: Could not retrieve WeiDU release information"
     return 1
   fi
-  weidu_tag_name=$(echo "$weidu_json" | jq -r '.tag_name')
+  weidu_tag=$(echo "$weidu_json" | jq -r '.tag_name')
   
   weidu_url=""
   for url in $(echo "$weidu_json" | jq -r '.assets[].browser_download_url'); do
-    result=$(validate_weidu_url "$url" "$weidu_arch" "$weidu_os" "$weidu_tag_name")
+    result=$(validate_weidu_url "$url" "$weidu_arch" "$weidu_os" "$weidu_tag")
     if [ -n "$result" ]; then
       weidu_url="$result"
       break
@@ -69,35 +69,37 @@ download_weidu() {
   fi
 
   # Extracting WeiDU binary
-  if ! unpack_weidu "$weidu_path" "$weidu_bin" "$weidu_arch" "$weidu_tag_name" ; then
+  if ! unpack_weidu "$weidu_path" "$weidu_name" "$weidu_arch" "$weidu_tag" "$dest_dir" ; then
     printerr "ERROR: Could not extract WeiDU binary."
     clean_up "$weidu_path"
     return 1
   fi
 
   clean_up "$weidu_path"
-
   return 0
+)
 }
 
 
 # Unpacks a specific file from the given WeiDU zip archive.
-# Expected parameters: weidu_path, weidu_bin, arch, tag_name
+# Expected parameters: weidu_path, weidu_bin, arch, tag_name, [target directory]
 unpack_weidu() {
+(
   if [ $# -gt 3 ]; then
     weidu_path="$1"
     weidu_bin="$2"
     arch="$3"
     version=$(echo "$4" | sed -re 's/^v([0-9]+).*/\1/')
+    dest_dir="${5:-.}"
 
     if [ $version -lt 247 ]; then
       # WeiDU 246: zip archive includes binaries for "amd64" and "x86"
       if [ "$arch" != "amd64" ]; then
         arch="x86"
       fi
-      unzip -jo "$weidu_path" "**/$arch/$weidu_bin"
+      unzip -jo "$weidu_path" "**/$arch/$weidu_bin" -d "$dest_dir"
     else
-      unzip -jo "$weidu_path" "**/$weidu_bin"
+      unzip -jo "$weidu_path" "**/$weidu_bin" -d "$dest_dir"
     fi
 
     if [ $? -ne 0 ]; then
@@ -106,12 +108,14 @@ unpack_weidu() {
     return 0
   fi
   return 1
+)
 }
 
 
 # Validates the given URL with the specified parameters and returns it to stdout if successful.
 # Expected parameters: url, arch, os, tag_name
 validate_weidu_url() {
+(
   if [ $# -gt 3 ]; then
     url="$1"
     arch="$2"
@@ -157,6 +161,7 @@ validate_weidu_url() {
       fi
     fi
   fi
+)
 }
 
 
@@ -164,6 +169,7 @@ validate_weidu_url() {
 # Expected parameters: tp2_file_path, platform
 # Returns empty string on error.
 get_setup_binary_name() {
+(
   if [ $# -gt 1 ]; then
     ext=""
     if [ "$2" = "windows" ]; then
@@ -174,12 +180,14 @@ get_setup_binary_name() {
     name="$prefix$name$ext"
     echo "$name"
   fi
+)
 }
 
 # Prints the setup .command script filename (macOS only).
 # Expected parameters: tp2_file_path, platform
 # Returns empty string on error or non-macOS architectures.
 get_setup_command_name() {
+(
   if [ $# -gt 1 ]; then
     if [ "$2" = "macos" ]; then
       prefix=$(path_get_tp2_prefix "$1")
@@ -188,6 +196,7 @@ get_setup_command_name() {
       echo "$name"
     fi
   fi
+)
 }
 
 
@@ -195,6 +204,7 @@ get_setup_command_name() {
 # Expected parameters: weidu_binary, tp2_file_path, platform
 # Returns with an error code on failure.
 create_setup_binaries() {
+(
   if [ $# -gt 2 ]; then
     setup_file=$(get_setup_binary_name "$2" "$3")
     if [ -z "$setup_file" ]; then
@@ -219,12 +229,14 @@ create_setup_binaries() {
   else
     return 1
   fi
+)
 }
 
 
 # Reads the VERSION string from the specified tp2 file if available and prints the result to stdout.
 # Expected parameters: tp2_file_path
 get_tp2_version() {
+(
   if [ $# -gt 0 ]; then
     # Try string in tilde delimiters first
     v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+~([^~]*)~.*/\1/')
@@ -252,4 +264,5 @@ get_tp2_version() {
 
     echo "$v"
   fi
+)
 }

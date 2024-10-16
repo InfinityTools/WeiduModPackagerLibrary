@@ -12,7 +12,7 @@
 eval_arguments() {
   while [ $# -gt 0 ]; do
     case $1 in
-      type= | type=iemod | type=windows | type=linux | type=macos)
+      type= | type=iemod | type=windows | type=linux | type=macos | type=multi)
         ;;
       arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy)
         ;;
@@ -69,7 +69,7 @@ eval_type() {
     if echo "$1" | grep -qe '^type=' ; then
       param="${1#*=}"
       case $param in
-        iemod | windows | linux | macos)
+        iemod | windows | linux | macos | multi)
           ret_val="$param"
           ;;
       esac
@@ -317,7 +317,7 @@ weidu_min="246"
 # Parameter check
 eval_arguments "$@" || exit 1
 
-# Supported types: iemod, windows, linux, macos
+# Supported types: iemod, windows, linux, macos, multi
 archive_type=$(eval_type "$@")
 echo "Archive type: $archive_type"
 
@@ -341,12 +341,13 @@ fi
 
 # WeiDU versions: latest, <version number>
 weidu_version=$(eval_weidu "$@")
-if [ "$weidu_version" = "latest" ]; then
-  weidu_tag_name="$weidu_version"
+if [ $archive_type = "multi" ]; then
+  # Enforcing latest WeiDU version when multi-platform type is enabled
+  weidu_version="latest"
+  echo "WeiDU version: $weidu_version (forced)"
 else
-  weidu_tag_name="tags/v${weidu_version}.00"
+  echo "WeiDU version: $weidu_version"
 fi
-echo "WeiDU version: $weidu_version"
 
 # WeiDU binary name
 bin_ext=$(get_bin_ext "$archive_type")

@@ -82,6 +82,7 @@ path_get_tp2_name() {
 # Example 2: "./mymod/mymod.tp2" return 2
 # Example 3: "./subfolder/mymod/mymod.tp2" return 3
 path_get_directory_level() {
+(
   level=0
   if [ $# -gt 0 ]; then
     path=$(echo "$1" | xargs)
@@ -92,12 +93,14 @@ path_get_directory_level() {
     done
   fi
   echo $level
+)
 }
 
 
 # Prints the tp2 filename setup prefix to stdout.
 # Default: "setup-" 
 path_get_tp2_prefix() {
+(
   prefix="setup-"
   if [ $# -gt 0 ]; then
     v=$(path_get_filebase "$1")
@@ -106,12 +109,14 @@ path_get_tp2_prefix() {
     fi
   fi
   echo "$prefix"
+)
 }
 
 
 # Scans a path for files of a specified name pattern and prints the first match to stdout if available.
 # Expected parameters: search path, "find" name pattern
 find_file() {
+(
   if [ $# -gt 1 ]; then
     root="$1"
     if [ -z "$root" ]; then
@@ -123,6 +128,7 @@ find_file() {
       return
     done
   fi
+)
 }
 
 
@@ -133,6 +139,7 @@ find_file() {
 # - path of the .tp2 file
 # - (optional) mod folder path (for old-style mods only)
 find_tp2() {
+(
   delimiter=":"
   root_path="."
   if [ $# -gt 0 ]; then
@@ -223,6 +230,7 @@ find_tp2() {
   shopt -u globstar
 
   echo "$tp2_array"
+)
 }
 
 
@@ -230,6 +238,7 @@ find_tp2() {
 # and prints it to stdout.
 # Expected parameters: tp2_mod_path, version_suffix, ini_file
 create_package_name() {
+(
   if [ $# -gt 0 ]; then
     tp2_mod_path="$1"
   fi
@@ -300,4 +309,5 @@ create_package_name() {
   fi
 
   echo "${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
+)
 }

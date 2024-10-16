@@ -6,26 +6,39 @@
 # Supported parameters for script execution:
 # type={archive_type}
 # This parameter determines the resulting archive format.
-# Supported archive types: iemod, windows, linux, macos
-# - iemod:    Creates a zip archive with the .iemod extension and no setup binary.
-# - windows:  Creates a regular zip archive which includes a Windows setup binary.
-# - linux:    Creates a regular zip archive which includes a Linux setup binary.
-# - macos:    Creates a regular zip archive which includes a macOS setup binary
-#             and associated setup-*.command script file.
+# Supported archive types: iemod, windows, linux, macos, multi
+# - iemod:        Creates a zip archive with the .iemod extension and no setup binary.
+# - windows:      Creates a regular zip archive which includes a Windows setup binary.
+# - linux:        Creates a regular zip archive which includes a Linux setup binary.
+# - macos:        Creates a regular zip archive which includes a macOS setup binary and
+#                 associated setup-*.command script file.
+# - multi:        Creates a regular zip archive which includes setup binaries and scripts for all
+#                 supported platforms.
+#                 Notes:
+#                 1) Size of the mod package will increase by about 12 MB compared to "iemod".
+#                 2) Interactive mod installation will be invoked by a script instead of a setup binary:
+#                    "setup-*.command" for macOS, "setup-*.sh" for Linux, and "setup-*.bat" for Windows.
+#                 3) Platform-specific WeiDU binaries are placed into the
+#                    "weidu_external/tools/weidu/{platform}/{architecture}" folder structure. Not all
+#                    platforms have binaries for multiple architectures.
+#                 4) Specifying "x86-legacy" architecture instructs the Windows setup script to use
+#                    the "x86-legacy" WeiDU binary. Otherwise a compatible architecture is determined
+#                    automatically by the script.
 # Default archive type: iemod
 
 # arch={architecture}
 # This parameter determines the architecture of the included setup binary.
-# It is currently only effective for Windows, as all other platforms provide only binaries
-# for a single architecture.
+# It is currently only effective for Windows. Other platforms provide only binaries for a
+# single architecture.
 # Supported architectures: amd64, x86, x86-legacy
 # - x86-legacy: Specify this option to include a special WeiDU binary that is compatible with
 #               older Windows versions and does not mangle non-ASCII characters in resource
-#               filenames. This can be useful for specific mods, such as Infinity Animations.
+#               filenames. This can be useful for specific mods, such as Generalized Biffing 
+#               in conjunction with Infinity Animations.
 # Default architecture: amd64
 
 # suffix={type_or_string}
-# Supported suffix type: version, none. Everything else is treated as a literal string.
+# Supported suffix types: version, none. Everything else is treated as a literal string.
 # - none:    A symbolic name to indicate that no version suffix is added.
 # - version: Uses the VERSION definition of the tp2 file of the mod.
 # In all cases:
@@ -49,6 +62,7 @@
 # WeiDU version to use for the setup binaries for platform-specific zip archives.
 # Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
 # Currently supported versions: 246 or later.
+# Note: Latest WeiDU version is enforced if "type" parameter is set to "multi".
 # Default: latest
 
 # prefix_win, prefix_lin, prefix_mac: {string}
@@ -65,6 +79,22 @@
 #####################################
 #     Start of script execution     #
 #####################################
+
+# Global variables:
+# - archive_type:   Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
+# - arch:           Argument of the "arch=" parameter (amd64, x86, x86-legacy)
+# - suffix:         Argument of the "suffix=" parameter (version, none, or <literal string>)
+# - extra:          Argument of the "extra=" parameter
+# - naming:         Argument of the "naming=" parameter (ini, tp2, or <literal string>)
+# - weidu_version:  Argument of the "weidu=" parameter (latest, or a specific WeiDU version)
+# - prefix_win      Argument of the "prefix_win=" parameter
+# - prefix_lin      Argument of the "prefix_lin=" parameter
+# - prefix_mac      Argument of the "prefix_mac=" parameter
+# - mod_filter:     Argument of the "tp2_name=" parameter
+# - weidu_url_base: Base URL for the JSON release definition.
+# - weidu_min:      Supported minimum WeiDU version
+# - bin_ext:        File extension of executable files (".exe" on Windows, empty string otherwise)
+# - weidu_bin:      Filename of the WeiDU binary
 
 # Prints a specified message to stderr.
 printerr() {
@@ -116,10 +146,10 @@ fi
 while [ -n "$tp2_result" ]; do
   # splitting tp2_result into variables: mod_root, tp2_file, tp2_mod_path
   split_to_vars "$tp2_result" "tp2_result" ":" "mod_root" "tp2_file" "tp2_mod_path"
-  echo "mod root: $mod_root"
-  echo "tp2 file: $tp2_file"
+  echo "Mod root: $mod_root"
+  echo "Tp2 file: $tp2_file"
   if [ -n "$tp2_mod_path" ]; then
-    echo "tp2 mod folder: $tp2_mod_path"
+    echo "Tp2 mod folder: $tp2_mod_path"
   fi
 
   # Setting root folder for the mod file structure
@@ -131,11 +161,54 @@ while [ -n "$tp2_result" ]; do
   command_file=""
 
   # Setting up setup binary file(s)
-  if [ "$archive_type" != "iemod" ]; then
+  if [ "$archive_type" = "multi" ]; then
+    # Multi-platform set up
+    mkdir -pv weidu_external/tools/weidu/{osx,unix,win32}
+    mkdir -pv weidu_external/tools/weidu/win32/{amd64,x86,x86-legacy}
+    removables+=("weidu_external")
+
+    for folder in "osx" "unix" "win32/amd64" "win32/x86" "win32/x86-legacy"; do
+      case "$folder" in
+        osx)
+          os="macos"
+          warch="amd64"
+          bin="weidu"
+          ;;
+        unix)
+          os="linux"
+          warch="amd64"
+          bin="weidu"
+          ;;
+        win32/*)
+          os="windows"
+          warch="${folder##*/}"
+          bin="weidu.exe"
+          ;;
+      esac
+      echo "Downloading WeiDU executable: $bin ($os, $warch)"
+      download_weidu "$os" "$warch" "$weidu_version" "$bin" "weidu_external/tools/weidu/$folder"
+      if [ $? -ne 0 ]; then exit 1; fi
+      echo "weidu_external/tools/weidu/$folder/$bin" >>"$zip_include"
+    done
+
+    setup_script_base=$(get_setup_binary_name "$tp2_file" "linux")
+    install -m755 "$DIR/scripts/setup-mod.sh" "${setup_script_base}.sh"
+    install -m755 "$DIR/scripts/setup-mod.sh" "${setup_script_base}.command"
+    install -m755 "$DIR/scripts/setup-mod.bat" "${setup_script_base}.bat"
+    if [ "$arch" = "x86-legacy" ]; then
+      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.sh"
+      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.command"
+      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.bat"
+    fi
+    echo "${setup_script_base}.sh" >>"$zip_include"
+    echo "${setup_script_base}.command" >>"$zip_include"
+    echo "${setup_script_base}.bat" >>"$zip_include"
+    removables+=("${setup_script_base}.sh" "${setup_script_base}.command" "${setup_script_base}.bat")
+  elif [ "$archive_type" != "iemod" ]; then
     if [ ! -e "$weidu_bin" ]; then
       # Downloading WeiDU binary
       echo "Downloading WeiDU executable: $weidu_bin ($archive_type)"
-      download_weidu "$archive_type" "$arch" "$weidu_tag_name"
+      download_weidu "$archive_type" "$arch" "$weidu_version"
       if [ $? -ne 0 ]; then
         exit 1
       fi

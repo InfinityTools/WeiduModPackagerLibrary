@@ -23,11 +23,7 @@ to_lower() {
 # Default replacement if second parameter is omitted: underscore (_)
 normalize_filename() {
   if [ $# -gt 0 ]; then
-    if [ $# -gt 1 ]; then
-      replace="$2"
-    else
-      replace="_"
-    fi
+    replace="${2:-_}"
     echo "$1" | sed -re "s/$special_characters_regex/$replace/g" | tr -dc '[:print:]'
   fi
 }
@@ -140,6 +136,6 @@ normalize_version() {
 #####################################
 
 # Checking required tools
-for tool in "cat" "curl" "find" "grep" "jq" "unzip" "zip"; do
+for tool in "cat" "curl" "find" "grep" "jq" "sed" "tr" "unzip" "zip"; do
   which $tool >/dev/null || ( printerr "ERROR: Tool not found: $tool"; exit 1 )
 done
