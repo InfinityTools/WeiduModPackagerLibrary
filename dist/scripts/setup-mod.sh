@@ -43,7 +43,7 @@ case "${uname_arch}" in
     ;;
 esac
 
-if test "${os}" == "win32" ; then
+if test "${os}" = "win32" ; then
   if test $use_legacy -ne 0 ; then
     arch="x86-legacy"
   fi
@@ -68,7 +68,7 @@ if ! test -e "${weidu_path}" ; then
 fi
 chmod +x "${weidu_path}"
 
-setup_prefix="${script_base:0:6}"
+setup_prefix=$(echo "$script_base" | cut -c 1-6)
 if test "$setup_prefix" != "setup-" ; then
   "${weidu_path}" "$@"
 else
