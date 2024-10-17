@@ -89,7 +89,7 @@ on:
         description: 'Prefix for the mod package name that is used for the macOS-specific zip archive.'
         required: false
         type: string
-        default: 'osx'
+        default: 'mac'
 
       multi_autoupdate:
         description: 'Specifies whether to enable or disable the WeiDU auto-update feature in setup scripts of multi-platform zip archives.'

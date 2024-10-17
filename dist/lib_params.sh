@@ -267,10 +267,10 @@ eval_prefix_lin() {
 
 
 # Prints the os-specific package name prefix to stdout, based on given parameters.
-# Default: osx
+# Default: mac
 # Pass $@ to the function.
 eval_prefix_mac() {
-  ret_val="osx"
+  ret_val="mac"
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_mac=' ; then
       ret_val="${1#*=}"

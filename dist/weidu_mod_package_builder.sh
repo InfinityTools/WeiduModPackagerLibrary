@@ -67,7 +67,7 @@
 
 # prefix_win, prefix_lin, prefix_mac: {string}
 # Prefix string to use for platform-specific zip archive names.
-# Default: win, lin, osx (for Windows, Linux and macOS platforms respectively)
+# Default: win, lin, mac (for Windows, Linux and macOS platforms respectively)
 
 # tp2_name: {string}
 # This parameter defines the tp2 filename of the mod to include in the mod package.
