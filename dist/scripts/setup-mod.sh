@@ -4,9 +4,6 @@
 #  Multi-platform shell script for interactive mod installation  #
 ##################################################################
 
-# Set "use_legacy" to 1 if the mod should prefer the legacy WeiDU binary on Windows
-use_legacy=0
-
 # Set "autoupdate" to 0 to skip the process of auto-updating the WeiDU binary
 autoupdate=1
 
@@ -46,17 +43,24 @@ case "${uname_arch}" in
     ;;
 esac
 
-if test "${os}" = "win32" ; then
-  if test $use_legacy -ne 0 ; then
-    arch="x86-legacy"
-  fi
-fi
-
 cd "${0%[/\\]*}"
 
 script_name="${0##*[/\\]}"
 script_base="${script_name%.*}"
 mod_name="${script_base#setup-}"
+
+# Special: Windows installation is invoked directly by the setup binary
+if test "${os}" = "win32" ; then
+  setup_binary="./${script_base}${exe}"
+  if test -e "${setup_binary}" ; then
+    chmod +x "${setup_binary}"
+    "${setup_binary}" "$@"
+    exit $?
+  else
+    echo "ERROR: Setup binary not found: ${setup_binary}"
+    exit 1
+  fi
+fi
 
 weidu_path="weidu_external/tools/weidu/${os}/${arch}/weidu${exe}"
 if ! test -e "${weidu_path}" ; then

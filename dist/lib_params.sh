@@ -370,13 +370,7 @@ fi
 
 # WeiDU versions: latest, <version number>
 weidu_version=$(eval_weidu "$@")
-if [ $archive_type = "multi" ]; then
-  # Enforcing latest WeiDU version when multi-platform type is enabled
-  weidu_version="latest"
-  echo "WeiDU version: $weidu_version (forced)"
-else
-  echo "WeiDU version: $weidu_version"
-fi
+echo "WeiDU version: $weidu_version"
 
 # WeiDU binary name
 bin_ext=$(get_bin_ext "$archive_type")

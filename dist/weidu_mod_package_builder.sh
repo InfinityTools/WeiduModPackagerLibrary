@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 1.3
+# Version 2.0
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -13,23 +13,18 @@
 # - macos:        Creates a regular zip archive which includes a macOS setup binary and
 #                 associated setup-*.command script file.
 # - multi:        Creates a regular zip archive which includes setup binaries and scripts for all
-#                 supported platforms.
-#                 Notes:
-#                 1) Size of the mod package will increase by about 12 MB compared to "iemod".
-#                 2) Interactive mod installation will be invoked by a script instead of a setup binary:
-#                    "setup-*.command" for macOS, "setup-*.sh" for Linux, and "setup-*.bat" for Windows.
-#                 3) Platform-specific WeiDU binaries are placed into the
-#                    "weidu_external/tools/weidu/{platform}/{architecture}" folder structure. Not all
-#                    platforms have binaries for multiple architectures.
-#                 4) Specifying "x86-legacy" architecture instructs the Windows setup script to use
-#                    the "x86-legacy" WeiDU binary. Otherwise a compatible architecture is determined
-#                    automatically by the script.
+#                 supported platforms:
+#                 1) Size of the mod package will increase by about 10 MB compared to "iemod".
+#                 2) On Windows platforms users will run setup-*.exe directly.
+#                    For macOS and Linux interactive mod installation will be invoked by a script
+#                    ("setup-*.command" for macOS, "setup-*.sh" for Linux), and the WeiDU binaries
+#                    are placed into the "weidu_external/tools/weidu/{platform}" folder structure.
 # Default archive type: iemod
 
 # arch={architecture}
 # This parameter determines the architecture of the included setup binary.
-# It is currently only effective for Windows. Other platforms provide only binaries for a
-# single architecture.
+# It is currently only effective for Windows. Other platforms provide architecture-specific binaries
+# only for WeiDU version 246.
 # Supported architectures: amd64, x86, x86-legacy
 # - x86-legacy: Specify this option to include a special WeiDU binary that is compatible with
 #               older Windows versions and does not mangle non-ASCII characters in resource
@@ -62,7 +57,6 @@
 # WeiDU version to use for the setup binaries for platform-specific zip archives.
 # Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
 # Currently supported versions: 246 or later.
-# Note: Latest WeiDU version is enforced if "type" parameter is set to "multi".
 # Default: latest
 
 # prefix_win, prefix_lin, prefix_mac: {string}
@@ -77,10 +71,11 @@
 
 # multi_autoupdate: {boolean}
 # This parameter is only considered if the "type" parameter is set to "multi".
-# It defines whether the setup scripts should automatically update the WeiDU binary to the
-# latest available version found in the game directory.
+# It defines whether the setup scripts for Linux and macOS should automatically update the
+# WeiDU binary to the latest available version found in the game directory.
 # Using the latest WeiDU version ensures max. compatibility with operations that result in
 # temporary uninstallation or reinstallation of mod components.
+# Windows setup is not affected by this parameter since it is automatically handled by WeiDU itself.
 # Supported parameters: false, true, 0, 1
 # Default: true
 
@@ -103,7 +98,7 @@
 # - weidu_url_base:   Base URL for the JSON release definition.
 # - weidu_min:        Supported minimum WeiDU version
 # - bin_ext:          File extension of executable files (".exe" on Windows, empty string otherwise)
-# - weidu_bin:        Filename of the WeiDU binary
+# - weidu_bin:        Filename of the WeiDU binary (irrelevant for archive types "iemod" and "multi")
 
 # Prints a specified message to stderr.
 printerr() {
@@ -171,63 +166,83 @@ while [ -n "$tp2_result" ]; do
 
   # Setting up setup binary file(s)
   if [ "$archive_type" = "multi" ]; then
-    # Multi-platform set up
-    mkdir -pv weidu_external/tools/weidu/{osx,unix,win32}
-    mkdir -pv weidu_external/tools/weidu/win32/{amd64,x86,x86-legacy}
-    removables+=("weidu_external")
+    # Multi-platform setup
+    if [ ! -d "weidu_external/tools/weidu" ]; then
+      # Installing generic WeiDU binaries for Linux and macOS
+      mkdir -pv weidu_external/tools/weidu/{osx,unix}
+      removables+=("weidu_external")
 
-    for folder in "osx" "unix" "win32/amd64" "win32/x86" "win32/x86-legacy"; do
-      case "$folder" in
-        osx)
+      # Downloading WeiDU binaries
+      weidu_bin="weidu"
+      for folder in "osx" "unix"; do
+        if [ "$folder" = "osx" ]; then
           os="macos"
-          warch="amd64"
-          bin="weidu"
-          ;;
-        unix)
+        else
           os="linux"
-          warch="amd64"
-          bin="weidu"
-          ;;
-        win32/*)
-          os="windows"
-          warch="${folder##*/}"
-          bin="weidu.exe"
-          ;;
-      esac
-      echo "Downloading WeiDU executable: $bin ($os, $warch)"
-      download_weidu "$os" "$warch" "$weidu_version" "$bin" "weidu_external/tools/weidu/$folder"
-      if [ $? -ne 0 ]; then exit 1; fi
-      echo "weidu_external/tools/weidu/$folder/$bin" >>"$zip_include"
-    done
-
+        fi
+        echo "Downloading WeiDU executable: $weidu_bin ($os, $arch)"
+        download_weidu "$os" "$arch" "$weidu_version" "$weidu_bin" "weidu_external/tools/weidu/$folder"
+        if [ $? -ne 0 ]; then
+          clean_up "${removables[@]}"
+          exit 1
+        fi
+        echo "weidu_external/tools/weidu/$folder/$weidu_bin" >>"$zip_include"
+      done
+    fi
+    # Setting up setup scripts for Linux and macOS
     setup_script_base=$(get_setup_binary_name "$tp2_file" "linux")
     install -m755 "$DIR/scripts/setup-mod.sh" "${setup_script_base}.sh"
     install -m755 "$DIR/scripts/setup-mod.sh" "${setup_script_base}.command"
-    install -m755 "$DIR/scripts/setup-mod.bat" "${setup_script_base}.bat"
-    if [ "$arch" = "x86-legacy" ]; then
-      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.sh"
-      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.command"
-      sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.bat"
-    fi
     if [ $multi_autoupdate -eq 0 ]; then
       sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.sh"
       sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.command"
-      sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.bat"
     fi
     echo "${setup_script_base}.sh" >>"$zip_include"
     echo "${setup_script_base}.command" >>"$zip_include"
-    echo "${setup_script_base}.bat" >>"$zip_include"
-    removables+=("${setup_script_base}.sh" "${setup_script_base}.command" "${setup_script_base}.bat")
+    removables+=("${setup_script_base}.sh" "${setup_script_base}.command")
+    echo "Setup name: ${setup_script_base}.command"
+    echo "Setup name: ${setup_script_base}.sh"
+
+    # Installing Windows setup binary
+    weidu_bin="weidu.exe"
+    if [ ! -e "$weidu_bin" ]; then
+      # Downloading WeiDU binary
+      echo "Downloading WeiDU executable: $weidu_bin (windows)"
+      download_weidu "windows" "$arch" "$weidu_version" "$weidu_bin"
+      if [ $? -ne 0 ]; then
+        clean_up "${removables[@]}"
+        exit 1
+      fi
+      if [ ! -e "$weidu_bin" ]; then
+        printerr "ERROR: Could not find WeiDU binary on the system."
+        clean_up "${removables[@]}"
+        exit 1
+      fi
+      removables+=("$weidu_bin")
+    fi
+    # Setting up setup binary for Windows
+    create_setup_binaries "$weidu_bin" "$tp2_file" "windows"
+    if [ $? -ne 0 ]; then
+      printerr "ERROR: Could not create setup binaries."
+      clean_up "${removables[@]}"
+      exit 1
+    fi
+    setup_file=$(get_setup_binary_name "$tp2_file" "windows")
+    echo "${setup_file}" >>"$zip_include"
+    removables+=("$setup_file")
+    echo "Setup name: $setup_file"
   elif [ "$archive_type" != "iemod" ]; then
     if [ ! -e "$weidu_bin" ]; then
       # Downloading WeiDU binary
       echo "Downloading WeiDU executable: $weidu_bin ($archive_type)"
       download_weidu "$archive_type" "$arch" "$weidu_version"
       if [ $? -ne 0 ]; then
+        clean_up "${removables[@]}"
         exit 1
       fi
       if [ ! -e "$weidu_bin" ]; then
         printerr "ERROR: Could not find WeiDU binary on the system."
+        clean_up "${removables[@]}"
         exit 1
       fi
       removables+=("$weidu_bin")
@@ -238,7 +253,7 @@ while [ -n "$tp2_result" ]; do
     create_setup_binaries "$weidu_bin" "$tp2_file" "$archive_type"
     if [ $? -ne 0 ]; then
       printerr "ERROR: Could not create setup binaries."
-      clean_up "$weidu_bin"
+      clean_up "${removables[@]}"
       exit 1
     fi
 
