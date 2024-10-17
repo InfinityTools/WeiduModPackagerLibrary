@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 
 REM ###########################################################
 REM #  Windows batch script for interactive mod installation  #
@@ -6,6 +7,9 @@ REM ###########################################################
 
 REM Set "use_legacy" to 1 if the mod should prefer the legacy WeiDU binary on Windows
 set use_legacy=0
+
+REM Set "autoupdate" to 0 to skip the process of auto-updating the WeiDU binary
+set autoupdate=1
 
 cd /d %~dp0
 set script_base=%~n0
@@ -37,10 +41,46 @@ echo ERROR: WeiDU binary not found: %weidu_path%
 exit /b 1
 
 :weidu_found
-if not x%script_base:setup-=%==x%script_base% goto :run_setup
+if not x%script_base:setup-=%==x%script_base% goto :auto_update
 
 %weidu_path% %*
 exit /b
+
+:auto_update
+if %autoupdate% equ 0 goto :run_setup
+
+echo Performing WeiDU auto-update...
+
+REM Getting current WeiDU version
+for /f "tokens=4" %%v in ('%weidu_path% --version') do (
+  set old_version=%%v
+  set cur_version=%%v
+  set cur_file=
+)
+
+REM Finding setup binary of higher version than reference WeiDU binary
+for /r %%f in (setup-*.exe) do (
+  for /f "tokens=4 usebackq" %%v in (`%%~nxf --version`) do (
+    REM Verify that "version" is a valid number
+    set "var="&for /f "delims=0123456789" %%i in ("%%v") do set var=%%i
+    if not defined var (
+      if %%v gtr !cur_version! (
+        REM Consider only stable releases
+        set ver=%%v:00=
+        if not !ver! == %%v (
+          set cur_version=%%v
+          set cur_file=%%~nxf
+        )
+      )
+    )
+  )
+)
+
+REM Updating WeiDU binary
+if not [%cur_file%] == [] (
+  echo Updating WeiDU binary: %old_version% =^> %cur_version%
+  copy /b /y "%cur_file%" "%weidu_path%" >nul
+)
 
 :run_setup
 set tp2_path=%mod_name%\%mod_name%.tp2

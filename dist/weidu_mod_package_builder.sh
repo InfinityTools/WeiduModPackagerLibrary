@@ -75,26 +75,35 @@
 # (e.g. EET, EET_end, EET_gui).
 # Default: <empty string>
 
+# multi_autoupdate: {boolean}
+# This parameter is only considered if the "type" parameter is set to "multi".
+# It defines whether the setup scripts should automatically update the WeiDU binary to the
+# latest available version found in the game directory.
+# Using the latest WeiDU version ensures max. compatibility with operations that result in
+# temporary uninstallation or reinstallation of mod components.
+# Supported parameters: false, true, 0, 1
+# Default: true
 
 #####################################
 #     Start of script execution     #
 #####################################
 
 # Global variables:
-# - archive_type:   Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
-# - arch:           Argument of the "arch=" parameter (amd64, x86, x86-legacy)
-# - suffix:         Argument of the "suffix=" parameter (version, none, or <literal string>)
-# - extra:          Argument of the "extra=" parameter
-# - naming:         Argument of the "naming=" parameter (ini, tp2, or <literal string>)
-# - weidu_version:  Argument of the "weidu=" parameter (latest, or a specific WeiDU version)
-# - prefix_win      Argument of the "prefix_win=" parameter
-# - prefix_lin      Argument of the "prefix_lin=" parameter
-# - prefix_mac      Argument of the "prefix_mac=" parameter
-# - mod_filter:     Argument of the "tp2_name=" parameter
-# - weidu_url_base: Base URL for the JSON release definition.
-# - weidu_min:      Supported minimum WeiDU version
-# - bin_ext:        File extension of executable files (".exe" on Windows, empty string otherwise)
-# - weidu_bin:      Filename of the WeiDU binary
+# - archive_type:     Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
+# - arch:             Argument of the "arch=" parameter (amd64, x86, x86-legacy)
+# - suffix:           Argument of the "suffix=" parameter (version, none, or <literal string>)
+# - extra:            Argument of the "extra=" parameter
+# - naming:           Argument of the "naming=" parameter (ini, tp2, or <literal string>)
+# - weidu_version:    Argument of the "weidu=" parameter (latest, or a specific WeiDU version)
+# - prefix_win        Argument of the "prefix_win=" parameter
+# - prefix_lin        Argument of the "prefix_lin=" parameter
+# - prefix_mac        Argument of the "prefix_mac=" parameter
+# - mod_filter:       Argument of the "tp2_name=" parameter
+# - multi_autoupdate: Argument of the "multi_autoupdate=" parameter
+# - weidu_url_base:   Base URL for the JSON release definition.
+# - weidu_min:        Supported minimum WeiDU version
+# - bin_ext:          File extension of executable files (".exe" on Windows, empty string otherwise)
+# - weidu_bin:        Filename of the WeiDU binary
 
 # Prints a specified message to stderr.
 printerr() {
@@ -199,6 +208,11 @@ while [ -n "$tp2_result" ]; do
       sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.sh"
       sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.command"
       sed -i -e 's/use_legacy=0/use_legacy=1/' "${setup_script_base}.bat"
+    fi
+    if [ $multi_autoupdate -eq 0 ]; then
+      sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.sh"
+      sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.command"
+      sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}.bat"
     fi
     echo "${setup_script_base}.sh" >>"$zip_include"
     echo "${setup_script_base}.command" >>"$zip_include"

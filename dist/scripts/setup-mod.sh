@@ -7,6 +7,9 @@
 # Set "use_legacy" to 1 if the mod should prefer the legacy WeiDU binary on Windows
 use_legacy=0
 
+# Set "autoupdate" to 0 to skip the process of auto-updating the WeiDU binary
+autoupdate=1
+
 # Determining platform and binary file extension
 uname_os="$(uname -s)"
 case "${uname_os}" in
@@ -68,10 +71,62 @@ if ! test -e "${weidu_path}" ; then
 fi
 chmod +x "${weidu_path}"
 
+
+# This function prints the version number of the specified binary to stdout.
+# Prints 0 if version cannot be determined.
+# Expected parameters: bin_path
+get_bin_version() {
+  if test $# -gt 0 ; then
+    if test -x "$1" ; then
+      v=$("$1" --version 2>/dev/null)
+      if test $? -eq 0 ; then
+        v=$(echo "$v" | sed -re 's/^.*\[.+\][^0-9]+([0-9]+).*/\1/')
+        if $(echo "$v" | grep -qe '^[0-9]\+$') ; then
+          echo "$v"
+          return
+        fi
+      fi
+    fi
+  fi
+  echo "0"
+}
+
 setup_prefix=$(echo "$script_base" | cut -c 1-6)
 if test "$setup_prefix" != "setup-" ; then
   "${weidu_path}" "$@"
 else
+  if test $autoupdate -ne 0 ; then
+    echo "Performing WeiDU auto-update..."
+    # Getting current WeiDU version
+    old_version=$(get_bin_version "${weidu_path}")
+    cur_version="${old_version}"
+    cur_file=
+
+    # Finding setup binary of higher version than reference WeiDU binary
+    for file in $(find . -maxdepth 1 -type f -name "setup-*${exe}"); do
+      # Consider only executable files
+      if test -x "${file}" ; then
+        # Consider only binary files
+        if $(file -b --mime-type "${file}" | grep -qe '^application/') ; then
+          version=$(get_bin_version "${file}")
+          if test $version -gt $cur_version ; then
+            # Consider only stable releases
+            if $(echo "$version" | grep -qe '00$') ; then
+              cur_version="${version}"
+              cur_file="${file}"
+            fi
+          fi
+        fi
+      fi
+    done
+
+    # Updating WeiDU binary
+    if test -n "${cur_file}" ; then
+      echo "Updating WeiDU binary: ${old_version} => ${cur_version}"
+      cp -f "${cur_file}" "${weidu_path}"
+    fi
+  fi
+
   if test -f "${mod_name}/${script_base}.tp2" ; then
     tp2_path="${mod_name}/${script_base}.tp2"
   elif test -f "${mod_name}/${mod_name}.tp2" ; then

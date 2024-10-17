@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       # Determines the resulting archive format.
-      # Supported values: iemod, windows, linux, macos
+      # Supported values: iemod, windows, linux, macos, multi
       type:
         description: 'The mod package type'
         required: false
@@ -52,7 +52,6 @@ on:
         type: string
         default: 'tp2'
 
-
       # This parameter defines the tp2 filename of the mod to include in the mod package.
       # Specifying this option is only useful if a project contains multiple mods
       # (e.g. EET, EET_end, EET_gui).
@@ -91,6 +90,12 @@ on:
         required: false
         type: string
         default: 'osx'
+
+      multi_autoupdate:
+        description: 'Specifies whether to enable or disable the WeiDU auto-update feature in setup scripts of multi-platform zip archives.'
+        required: false
+        type: boolean
+        default: true
 
     outputs:
       # Name of the created mod package.
@@ -148,7 +153,8 @@ jobs:
               "tp2_name=${{ inputs.tp2_name }}" \
               "prefix_win=${{ inputs.prefix_windows }}" \
               "prefix_lin=${{ inputs.prefix_linux }}" \
-              "prefix_mac=${{ inputs.prefix_macos }}" || exit 1
+              "prefix_mac=${{ inputs.prefix_macos }}" \
+              "multi_autoupdate=${{ inputs.multi_autoupdate }}" || exit 1
 
       - id: upload
         name: Upload asset to release
