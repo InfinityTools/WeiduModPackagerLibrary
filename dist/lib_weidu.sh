@@ -238,22 +238,20 @@ create_setup_binaries() {
 get_tp2_version() {
 (
   if [ $# -gt 0 ]; then
-    # Try string in tilde delimiters first
-    v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+~([^~]*)~.*/\1/')
-    if [ -z "$v" ]; then
-      # Try string in double quotes
-      v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+"([^"]*)".*/\1/')
-      if [ -z "$v" ]; then
-        # Try string in percent signs
-        v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+%([^%]*)%.*/\1/')
-        if [ -z "$v" ]; then
-          # Finally, try string without delimiters
-          v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+([^ \t]*).*/\1/')
-          if echo "$v" | grep -qe '^@-\?[0-9]\+'; then
-            # Discard tra references
-            v=""
-          fi
-        fi
+    v=$(cat "$1" | grep '^\s*VERSION' | sed -re 's/^\s*VERSION\s+(.*)/\1/')
+    if [ -n "$v" ]; then
+      if echo "$v" | grep -qe '^~.*'; then
+        # Is tilde delimited string
+        v=$(echo "$v" | sed -re 's/^~([^~]*).*/\1/' | xargs)
+      elif echo "$v" | grep -qe '^".*'; then
+        # Is double quote delimited string
+        v=$(echo "$v" | sed -re 's/^"([^"]*).*/\1/' | xargs)
+      elif echo "$v" | grep -qe '^%.*'; then
+        # Is percent delimited string
+        v=$(echo "$v" | sed -re 's/^%([^%]*).*/\1/' | xargs)
+      elif echo "$v" | grep -qe '^@-\?[0-9]\+'; then
+        # Discard tra references
+        v=""
       fi
     fi
 
