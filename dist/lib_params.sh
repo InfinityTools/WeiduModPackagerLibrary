@@ -46,6 +46,8 @@ eval_arguments() {
         ;;
       multi_autoupdate=true | multi_autoupdate=false | multi_autoupdate=[0-1])
         ;;
+      case_sensitive=true | case_sensitive=false | case_sensitive=[0-1])
+        ;;
       *)
         printerr "ERROR: Invalid argument: $1"
         return 1
@@ -333,6 +335,33 @@ eval_multi_autoupdate() {
 }
 
 
+# Prints whether duplicate files in the same folder should be preserved to stdout,
+# based on the given parameters.
+# Default: 0
+eval_case_sensitive() {
+  ret_val=0
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^case_sensitive=' ; then
+      param="${1#*=}"
+      param="${param##*/}"
+      case "${param,,}" in
+        false | 0)
+          ret_val=0
+          ;;
+        true | 1)
+          ret_val=1
+          ;;
+        *)
+          ;;
+      esac
+    fi
+    shift
+  done
+
+  echo "$ret_val"
+}
+
+
 #####################################
 #     Start of script execution     #
 #####################################
@@ -411,3 +440,6 @@ fi
 
 # Enabled state of autoupdate feature for multi-platform mod packages
 multi_autoupdate=$(eval_multi_autoupdate "$@")
+
+# Whether to preserve duplicate files in the mod that only differ by case
+case_sensitive=$(eval_case_sensitive "$@")

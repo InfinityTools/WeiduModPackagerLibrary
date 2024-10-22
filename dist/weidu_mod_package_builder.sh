@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 2.0
+# Version 2.1
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -79,6 +79,15 @@
 # Supported parameters: false, true, 0, 1
 # Default: true
 
+# case_sensitive: {boolean}
+# This parameter specifies whether duplicate files which only differ in case should be preserved
+# when found in the same folder of the mod.
+# If this option is enabled then duplicate files may coexist in the same folder. This is only useful
+# on Linux where filesystems are case-sensitive by default. Otherwise, duplicate files with the
+# oldest modification date are removed.
+# Supported parameters: false, true, 0, 1
+# Default: false
+
 #####################################
 #     Start of script execution     #
 #####################################
@@ -95,6 +104,7 @@
 # - prefix_mac        Argument of the "prefix_mac=" parameter
 # - mod_filter:       Argument of the "tp2_name=" parameter
 # - multi_autoupdate: Argument of the "multi_autoupdate=" parameter
+# - case_sensitive:   Argument of the "case_sensitive=" parameter
 # - weidu_url_base:   Base URL for the JSON release definition.
 # - weidu_min:        Supported minimum WeiDU version
 # - bin_ext:          File extension of executable files (".exe" on Windows, empty string otherwise)
@@ -285,6 +295,15 @@ while [ -n "$tp2_result" ]; do
   if [ -z "$tp2_mod_path" ]; then
     tp2_mod_path=$(path_get_parent_path "$tp2_file")
     tp2_file=""
+  fi
+
+  # removing duplicate files
+  if [ $case_sensitive -eq 0 ]; then
+    remove_duplicates "$tp2_mod_path"
+    if [ $? -ne 0 ]; then
+      clean_up "${removables[@]}"
+      exit 1
+    fi
   fi
 
   echo "${tp2_mod_path}/**" >>"$zip_include"

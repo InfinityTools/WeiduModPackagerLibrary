@@ -311,3 +311,40 @@ create_package_name() {
   echo "${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
 )
 }
+
+
+# Finds and removes duplicate files that only differ by case in the specified folder and subfolders.
+# Expected parameters: tp2_mod_path, [root_path]
+remove_duplicates() {
+(
+  if [ $# -gt 0 ]; then
+    mod_path="$1"
+    root="."
+    if [ $# -gt 1 ]; then
+      root="$2"
+    fi
+
+    delete_files=()
+    prev_file=""
+    for file in $(find "$root/$mod_path" -type f | sort -f); do
+      cur_file="$file"
+      if [ "${prev_file,,}" = "${cur_file,,}" ]; then
+        date1=$(date -r "$prev_file" +%Y%0m%0d%0H%0M%0S)
+        date2=$(date -r "$cur_file" +%Y%0m%0d%0H%0M%0S)
+        if [[ "$date1" < "$date2" ]]; then
+          delete_files+=("$prev_file")
+          prev_item="$cur_item"
+          echo "Removing duplicate file: $prev_file"
+        else
+          delete_files+=("$cur_file")
+          echo "Removing duplicate file: $cur_file"
+        fi
+      else
+        prev_file="$cur_file"
+      fi
+    done
+
+    clean_up "${delete_files[@]}"
+  fi
+)
+}

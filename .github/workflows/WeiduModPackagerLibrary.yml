@@ -97,6 +97,15 @@ on:
         type: boolean
         default: true
 
+      # Indices whether duplicate files which only differ in case should be preserved when found in the same folder of the mod.
+      # This can be useful on Linux where filesystems are case-sensitive by default. Otherwise, duplicate files with the
+      # oldest modification date are removed.
+      case_sensitive:
+        description: 'Specifies whether duplicate files which only differ in case should be preserved when found in the same folder of the mod.'
+        required: false
+        type: boolean
+        default: false
+
     outputs:
       # Name of the created mod package.
       weidu_mod_package:
@@ -154,7 +163,8 @@ jobs:
               "prefix_win=${{ inputs.prefix_windows }}" \
               "prefix_lin=${{ inputs.prefix_linux }}" \
               "prefix_mac=${{ inputs.prefix_macos }}" \
-              "multi_autoupdate=${{ inputs.multi_autoupdate }}" || exit 1
+              "multi_autoupdate=${{ inputs.multi_autoupdate }}" \
+              "case_sensitive=${{ inputs.case_sensitive }}" || exit 1
 
       - id: upload
         name: Upload asset to release
