@@ -85,7 +85,7 @@ path_get_directory_level() {
 (
   level=0
   if [ $# -gt 0 ]; then
-    path=$(echo "$1" | xargs)
+    path=$(echo "$1" | trim)
     path="${path#./*}"
     while [ -n "$path" ]; do
       path=$(path_get_parent_path "$path")
@@ -289,7 +289,7 @@ create_package_name() {
 
     # Fetch "name" value from ini file
     if [ -n "$ini_path" -a -f "$ini_path" ]; then
-      name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=\s*(.*)/\1/' | xargs)
+      name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=(.*)/\1/' | trim "\"'")
       if [ -n "$name" ]; then
         archive_filebase=$(normalize_filename "$name" | tr " " "-")
       fi

@@ -10,6 +10,18 @@
 special_characters_regex='[<>:|*?$"/\\]'
 
 
+# Trims leading and trailing whitespace and an optional set of characters from the
+# piped string and prints it to stdout.
+# Expected parameters: [chars_to_trim]
+trim() {
+  v=$(sed -re 's/^\s+//;s/\s+$//')
+  if [ $# -gt 0 -a -n "$1" ]; then
+    v=$(echo "$v" | sed -re "s/^[$1]+//;s/[$1]+$//")
+  fi
+  echo "$v"
+}
+
+
 # Prints a lower-cased version of the specified string parameter to stdout.
 to_lower() {
   if [ $# -gt 0 ]; then
@@ -27,6 +39,7 @@ normalize_filename() {
     echo "$1" | sed -re "s/$special_characters_regex/$replace/g" | tr -dc '[:print:]'
   fi
 }
+
 
 # Decodes specially encoded characters in the URL strings and prints it to stdout.
 # Expected parameter: string
@@ -100,14 +113,19 @@ clean_up() {
 
 
 # Cleans up and normalizes a given version string and prints it to stdout.
-# Expected parameters: version_string
+# Expected parameters: version_string, [replacement_for_space]
 normalize_version() {
   if [ $# -gt 0 ]; then
-    v=$(echo "$1" | xargs)
+    v=$(echo "$1" | trim)
 
     # Any whitespace between 'v' prefix and version number will be removed
     if echo "$v" | grep -qie '^v\?\s\+[0-9]\+' ; then
       v=$(echo "$v" | sed -re 's/^[vV]\s+/v/')
+    fi
+
+    # (Optional) Replacing whitespace characters
+    if [ $# -gt 1 ]; then
+      v=$(echo "$v" | tr -s '[:blank:]' "$2")
     fi
 
     # Removing everything after the first whitespace character

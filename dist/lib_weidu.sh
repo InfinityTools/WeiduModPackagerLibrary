@@ -242,13 +242,13 @@ get_tp2_version() {
     if [ -n "$v" ]; then
       if echo "$v" | grep -qe '^~.*'; then
         # Is tilde delimited string
-        v=$(echo "$v" | sed -re 's/^~([^~]*).*/\1/' | xargs)
+        v=$(echo "$v" | sed -re 's/^~([^~]*).*/\1/' | trim)
       elif echo "$v" | grep -qe '^".*'; then
         # Is double quote delimited string
-        v=$(echo "$v" | sed -re 's/^"([^"]*).*/\1/' | xargs)
+        v=$(echo "$v" | sed -re 's/^"([^"]*).*/\1/' | trim)
       elif echo "$v" | grep -qe '^%.*'; then
         # Is percent delimited string
-        v=$(echo "$v" | sed -re 's/^%([^%]*).*/\1/' | xargs)
+        v=$(echo "$v" | sed -re 's/^%([^%]*).*/\1/' | trim)
       elif echo "$v" | grep -qe '^@-\?[0-9]\+'; then
         # Discard tra references
         v=""

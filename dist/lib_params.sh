@@ -178,7 +178,7 @@ eval_extra() {
   ret_val=""
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^extra=' ; then
-      ret_val=$(normalize_filename "${1#*=}" | xargs)
+      ret_val=$(normalize_filename "${1#*=}" | trim)
     fi
     shift
   done
@@ -207,7 +207,7 @@ eval_naming() {
           ;;
         *)
           if [ -n "$param" ]; then
-            ret_val=$(normalize_filename "$param" | xargs)
+            ret_val=$(normalize_filename "$param" | trim)
           fi
           ;;
       esac
@@ -223,7 +223,7 @@ eval_naming() {
 # Expects a single parameter: prefix
 _eval_prefix() {
   if [ $# -gt 0 ]; then
-    v=$(normalize_filename "$1" | xargs)
+    v=$(normalize_filename "$1" | trim)
     if [ -n "$v" ]; then
       if ! echo "$v" | grep -qe '^.*-$' ; then
         v="${v}-"
