@@ -148,7 +148,7 @@ find_tp2() {
 
   shopt -s globstar
   tp2_array=""
-  for tp2_path in $root_path/**/*.tp2; do
+  for tp2_path in $root_path/**/*.[tT][pP]2; do
     tp2_path="./${tp2_path#$root_path/}"
     dlevel=$(path_get_directory_level "$tp2_path")
     if [ $dlevel -gt 2 ]; then
