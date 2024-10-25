@@ -236,7 +236,7 @@ find_tp2() {
 
 # Generates the mod archive filename from the given parameters and global variables
 # and prints it to stdout.
-# Expected parameters: tp2_mod_path, version_suffix, ini_file
+# Expected parameters: tp2_mod_path, version, ini_file
 create_package_name() {
 (
   if [ $# -gt 0 ]; then
@@ -244,17 +244,36 @@ create_package_name() {
   fi
 
   if [ $# -gt 1 ]; then
-    version_suffix="$2"
+    version="$2"
   fi
 
   if [ $# -gt 2 ]; then
     ini_file="$3"
   fi
 
+  type="$archive_type"
+
   if [ "$archive_type" = "iemod" ]; then
     archive_ext=".iemod"
+    arch=""
   else
     archive_ext=".zip"
+
+    # TODO: This is a hack to quickly determine WeiDU architecture with a chance of getting a false positive.
+    #       A design change of the WeiDU-related functionality is needed to safely determine WeiDU architecture.
+    if [ "$archive_type" != "windows" ]; then
+      if [[ "$weidu_version" =~ ^[0-9]+$ ]]; then
+        if [ "$archive_type" = "linux" -a $weidu_version -eq 246 ]; then
+          if [ "$arch" = "x86-legacy" ]; then
+            arch="x86"
+          fi
+        else
+          arch=""
+        fi
+      else
+        arch=""
+      fi
+    fi
   fi
 
   # Platform-specific prefix needed to prevent overwriting package files
@@ -308,7 +327,9 @@ create_package_name() {
     archive_filebase="$naming"
   fi
 
-  echo "${os_prefix}${archive_filebase}${extra}${version_suffix}${archive_ext}"
+  base_name="$archive_filebase"
+  archive_filebase=$(resolve_name_template "$package_name_format")
+  echo "${archive_filebase}${archive_ext}"
 )
 }
 
@@ -345,6 +366,86 @@ remove_duplicates() {
     done
 
     clean_up "${delete_files[@]}"
+  fi
+)
+}
+
+
+# This function is called by resolve_name_template() internally.
+# It resolves placeholders in a string and prints the resolved string to stdout.
+# Expected parameters: group_string without delimiters
+resolve_template_group() {
+(
+  if [ $# -gt 0 ]; then
+    group="$1"
+    nogroup="$group"
+    group_pattern="^([^%]*)%([^%]*)%(.*)"
+    while [[ "$group" =~ $group_pattern ]]; do
+      # taking extra care not to resolve unsupported placeholder names
+      case "${BASH_REMATCH[2]}" in
+        arch | type | os_prefix | base_name | extra | version)
+          ;;
+        *)
+          BASH_REMATCH[2]="empty"
+          ;;
+      esac
+      group="${BASH_REMATCH[1]}\${${BASH_REMATCH[2]}}${BASH_REMATCH[3]}"
+      nogroup="${BASH_REMATCH[1]}${BASH_REMATCH[3]}"
+    done
+
+    # Discarding group content if placeholders resolve to empty strings
+    eval group="$group"
+    if [ "$group" = "$nogroup" ]; then
+      group=""
+    fi
+
+    echo "$group"
+  fi
+)
+}
+
+
+# Resolves a template string with placeholders and prints the result to stdout.
+# Expected parameters: template_string
+# Variables must already be defined: type, arch, os_prefix, base_name, extra, version
+resolve_name_template() {
+(
+  if [ $# -gt 0 ]; then
+    template="$1"
+
+    # Replacing escaped special characters: <, >, %
+    template="${template//\\[<>%]/-}"
+
+    # Escaping problematic characters: <space>, |, [, ], (, ), $
+    template="${template// /_}"
+    for char in '|' '[' ']' '(' ')' '$'; do
+      template="${template//${char}/\\${char}}"
+    done
+
+    # Splitting groups (<%xxx%>) into array of strings
+    groups=()
+    template_pattern="^([^<]*)<([^>]*)>(.*)"
+    while [[ "$template" =~ $template_pattern ]]; do
+      groups+=("${BASH_REMATCH[2]}")
+      template="${BASH_REMATCH[1]}::placeholder::${BASH_REMATCH[3]}"
+    done
+
+    # Resolving placeholders in strings
+    empty=""  # special placeholder
+    group_pattern="^([^%]*)%([^%]*)%(.*)"
+    for group in "${groups[@]}"; do
+      group=$(resolve_template_group "$group")
+      # Ampersand has special meaning in regex operations
+      group="${group//&/\\&}"
+
+      # Assembling resolved template
+      template="${template/::placeholder::/${group}}"
+    done
+
+    # Replacing special characters (outsource to separate function)
+    template=$(normalize_filename "$template" "-")
+
+    echo "$template"
   fi
 )
 }

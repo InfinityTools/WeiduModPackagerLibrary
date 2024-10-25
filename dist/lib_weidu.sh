@@ -43,7 +43,7 @@ download_weidu() {
     return 1
   fi
   weidu_tag=$(echo "$weidu_json" | jq -r '.tag_name')
-  
+
   weidu_url=""
   for url in $(echo "$weidu_json" | jq -r '.assets[].browser_download_url'); do
     result=$(validate_weidu_url "$url" "$weidu_arch" "$weidu_os" "$weidu_tag")

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 2.1
+# Version 2.2
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -45,7 +45,7 @@
 # An arbitrary string that will be appended after the package base name but before the version suffix.
 # Default: <empty string>
 
-# naming: {type_or_string}
+# naming={type_or_string}
 # This parameter defines the mod package base name.
 # Supported naming types: tp2, ini. Everything else is treated as a literal string.
 # - tp2: Uses the tp2 filename as base for generating the mod package base name.
@@ -53,23 +53,48 @@
 #        Falls back to "tp2" if not available.
 # Default: tp2
 
-# weidu: {type_or_number}
+# weidu={type_or_number}
 # WeiDU version to use for the setup binaries for platform-specific zip archives.
 # Specify "latest" to use the latest WeiDU version, or a specific WeiDU version.
 # Currently supported versions: 246 or later.
 # Default: latest
 
-# prefix_win, prefix_lin, prefix_mac: {string}
+# prefix_win={string}, prefix_lin={string}, prefix_mac={string}
 # Prefix string to use for platform-specific zip archive names.
 # Default: win, lin, mac (for Windows, Linux and macOS platforms respectively)
 
-# tp2_name: {string}
+# tp2_name={string}
 # This parameter defines the tp2 filename of the mod to include in the mod package.
 # Specifying this option is only useful if a project contains multiple mods
 # (e.g. EET, EET_end, EET_gui).
 # Default: <empty string>
 
-# multi_autoupdate: {boolean}
+# name_fmt={string}
+# This parameter defines the format of the mod package name without file extension. It supports
+# placeholder variables that can be placed into individual groups together with optional literal
+# strings to form the resulting package name.
+# Groups are delimited by angle brackets (<group content>).
+# Placeholder variables are delimited by percentage signs (%placeholder%).
+# Any characters outside of groups are preserved in the resulting mod package name.
+# A group is discarded completely if the placeholder variables in the group are empty.
+# A group without placeholder variables is always considered empty and will be discarded.
+# To use percent characters literally you have to escape them with backslash characters (e.g. \%).
+# Note that only the percentage sign is preserved. Angle brackets are considered invalid filename
+# characters and are replaced by the standard placeholder character.
+# Supported placeholder variables:
+# type        Specifies the package type (as defined by the "type" parameter).
+# arch        Specifies the architecture of the WeiDU binary (as defined by the "arch" parameter).
+#             This variable is empty for iemod package types.
+# os_prefix   Specifies the platform-specific prefix (as defined by "prefix_win", "prefix_lin", and
+#             "prefix_mac"). This variable is empty for iemod package types.
+# base_name   Specifies the base name of the mod package without any prefix or suffix (as defined by
+#             the "naming" parameter).
+# extra       Specifies the content of the "extra" parameter.
+# version     Specifies the version string (as defined by the "suffix" parameter).
+# Unsupported placeholder variables are resolved to empty strings.
+# Default: <%os_prefix%-><%base_name%><-%extra%><-%version%>
+
+# multi_autoupdate={boolean}
 # This parameter is only considered if the "type" parameter is set to "multi".
 # It defines whether the setup scripts for Linux and macOS should automatically update the
 # WeiDU binary to the latest available version found in the game directory.
@@ -79,7 +104,7 @@
 # Supported parameters: false, true, 0, 1
 # Default: true
 
-# case_sensitive: {boolean}
+# case_sensitive={boolean}
 # This parameter specifies whether duplicate files which only differ in case should be preserved
 # when found in the same folder of the mod.
 # If this option is enabled then duplicate files may coexist in the same folder. This is only useful
@@ -93,22 +118,23 @@
 #####################################
 
 # Global variables:
-# - archive_type:     Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
-# - arch:             Argument of the "arch=" parameter (amd64, x86, x86-legacy)
-# - suffix:           Argument of the "suffix=" parameter (version, none, or <literal string>)
-# - extra:            Argument of the "extra=" parameter
-# - naming:           Argument of the "naming=" parameter (ini, tp2, or <literal string>)
-# - weidu_version:    Argument of the "weidu=" parameter (latest, or a specific WeiDU version)
-# - prefix_win        Argument of the "prefix_win=" parameter
-# - prefix_lin        Argument of the "prefix_lin=" parameter
-# - prefix_mac        Argument of the "prefix_mac=" parameter
-# - mod_filter:       Argument of the "tp2_name=" parameter
-# - multi_autoupdate: Argument of the "multi_autoupdate=" parameter
-# - case_sensitive:   Argument of the "case_sensitive=" parameter
-# - weidu_url_base:   Base URL for the JSON release definition.
-# - weidu_min:        Supported minimum WeiDU version
-# - bin_ext:          File extension of executable files (".exe" on Windows, empty string otherwise)
-# - weidu_bin:        Filename of the WeiDU binary (irrelevant for archive types "iemod" and "multi")
+# - archive_type:         Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
+# - arch:                 Argument of the "arch=" parameter (amd64, x86, x86-legacy)
+# - suffix:               Argument of the "suffix=" parameter (version, none, or <literal string>)
+# - extra:                Argument of the "extra=" parameter
+# - naming:               Argument of the "naming=" parameter (ini, tp2, or <literal string>)
+# - weidu_version:        Argument of the "weidu=" parameter (latest, or a specific WeiDU version)
+# - prefix_win            Argument of the "prefix_win=" parameter
+# - prefix_lin            Argument of the "prefix_lin=" parameter
+# - prefix_mac            Argument of the "prefix_mac=" parameter
+# - mod_filter:           Argument of the "tp2_name=" parameter
+# - package_name_format:  Argument of the "name_fmt=" parameter
+# - multi_autoupdate:     Argument of the "multi_autoupdate=" parameter
+# - case_sensitive:       Argument of the "case_sensitive=" parameter
+# - weidu_url_base:       Base URL for the JSON release definition.
+# - weidu_min:            Supported minimum WeiDU version
+# - bin_ext:              File extension of executable files (".exe" on Windows, empty string otherwise)
+# - weidu_bin:            Filename of the WeiDU binary (irrelevant for archive types "iemod" and "multi")
 
 # Prints a specified message to stderr.
 printerr() {
@@ -287,9 +313,6 @@ while [ -n "$tp2_result" ]; do
   fi
   version_suffix=$(normalize_version "$version_suffix" "_")
   echo "Version suffix: $version_suffix"
-  if [ -n "$version_suffix" -a "${version_suffix:0:1}" != "-" ]; then
-    version_suffix="-$version_suffix"
-  fi
 
   # getting mod folder and (optional) tp2 file paths
   if [ -z "$tp2_mod_path" ]; then

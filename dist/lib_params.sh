@@ -44,6 +44,8 @@ eval_arguments() {
         ;;
       tp2_name=*)
         ;;
+      name_fmt=*)
+        ;;
       multi_autoupdate=true | multi_autoupdate=false | multi_autoupdate=[0-1])
         ;;
       case_sensitive=true | case_sensitive=false | case_sensitive=[0-1])
@@ -185,9 +187,7 @@ eval_extra() {
     shift
   done
 
-  if [ -n "$ret_val" ]; then
-    echo "-$ret_val"
-  fi
+  echo "$ret_val"
 }
 
 
@@ -227,9 +227,9 @@ _eval_prefix() {
   if [ $# -gt 0 ]; then
     v=$(normalize_filename "$1" | trim)
     if [ -n "$v" ]; then
-      if ! echo "$v" | grep -qe '^.*-$' ; then
-        v="${v}-"
-      fi
+      while [[ "$v" =~ ^.*-$ ]]; do
+        v="${v::-1}"
+      done
     fi
     echo "$v"
   fi
@@ -308,6 +308,28 @@ eval_tp2_name() {
 }
 
 
+# Prints the package name template string to stdout, based on the given parameters.
+# Default: <%os_prefix%-><%base_name%><-%extra%><-%version%>
+eval_name_format() {
+  ret_val=""
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^name_fmt=' ; then
+      param="${1#*=}"
+      if [ -n "$param" ]; then
+        ret_val="$param"
+      fi
+    fi
+    shift
+  done
+
+  if [ -z "$ret_val" ]; then
+    ret_val="<%os_prefix%-><%base_name%><-%extra%><-%version%>"
+  fi
+
+  echo "$ret_val"
+}
+
+
 # Prints the enabled state of autoupdate feature for multi-platform package types to stdout,
 # based on the given parameters.
 # Default: 1
@@ -316,7 +338,6 @@ eval_multi_autoupdate() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^multi_autoupdate=' ; then
       param="${1#*=}"
-      param="${param##*/}"
       case "${param,,}" in
         false | 0)
           ret_val=0
@@ -343,7 +364,6 @@ eval_case_sensitive() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^case_sensitive=' ; then
       param="${1#*=}"
-      param="${param##*/}"
       case "${param,,}" in
         false | 0)
           ret_val=0
@@ -437,6 +457,9 @@ if [ -n "$mod_filter" ]; then
 else
   echo "Mod filter: <none>"
 fi
+
+# The package name format as a template string
+package_name_format=$(eval_name_format "$@")
 
 # Enabled state of autoupdate feature for multi-platform mod packages
 multi_autoupdate=$(eval_multi_autoupdate "$@")

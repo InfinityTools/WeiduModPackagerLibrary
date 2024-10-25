@@ -7,8 +7,8 @@
 ########################################################
 
 # A set of characters in filenames that require special care
-special_characters_regex='[<>:|*?$"/\\]'
-
+special_characters_regex='[<>|*?$"/\\]'
+remove_characters_regex='[:]'
 
 # Trims leading and trailing whitespace and an optional set of characters from the
 # piped string and prints it to stdout.
@@ -36,7 +36,12 @@ to_lower() {
 normalize_filename() {
   if [ $# -gt 0 ]; then
     replace="${2:-_}"
-    echo "$1" | sed -re "s/$special_characters_regex/$replace/g" | tr -dc '[:print:]'
+    v="$1"
+    v="${v// - /-}" # purely cosmetic replacement
+    v="${v//${remove_characters_regex}/}"
+    v="${v//${special_characters_regex}/${replace}}"
+    v=$(echo "$v" | tr -dc '[:print:]')
+    echo "$v"
   fi
 }
 
@@ -155,5 +160,8 @@ normalize_version() {
 
 # Checking required tools
 for tool in "cat" "curl" "find" "grep" "jq" "sed" "tr" "unzip" "zip"; do
-  which $tool >/dev/null || ( printerr "ERROR: Tool not found: $tool"; exit 1 )
+  if ! which $tool >/dev/null 2>&1; then
+    printerr "ERROR: Tool not found: $tool"
+    exit 1
+  fi
 done
