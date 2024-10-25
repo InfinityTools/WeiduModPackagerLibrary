@@ -7,7 +7,7 @@
 ########################################################
 
 # A set of characters in filenames that require special care
-special_characters_regex='[<>|*?$"/\\]'
+special_characters_regex='[<>|*?$&"/\\]'
 remove_characters_regex='[:]'
 
 # Trims leading and trailing whitespace and an optional set of characters from the
@@ -110,19 +110,25 @@ clean_up() {
 
 
 # Cleans up and normalizes a given version string and prints it to stdout.
-# Expected parameters: version_string, [replacement_for_space]
+# Expected parameters: version_string, beautify (1), [replacement_for_space]
 normalize_version() {
   if [ $# -gt 0 ]; then
-    v=$(echo "$1" | trim)
+    v="$1"
+    _beautify=$([ "${2:-1}" = "1" ] && echo "1" || echo "0")
+    _repl="$3"
 
-    # Any whitespace between 'v' prefix and version number will be removed
-    if echo "$v" | grep -qie '^v\?\s\+[0-9]\+' ; then
-      v=$(echo "$v" | sed -re 's/^[vV]\s+/v/')
+    v=$(echo "$v" | trim)
+
+    if [ $_beautify -eq 1 ]; then
+      # Any whitespace between 'v' prefix and version number will be removed
+      if echo "$v" | grep -qie '^v\?\s\+[0-9]\+' ; then
+        v=$(echo "$v" | sed -re 's/^[vV]\s+/v/')
+      fi
     fi
 
     # (Optional) Replacing whitespace characters
-    if [ $# -gt 1 ]; then
-      v=$(echo "$v" | tr -s '[:blank:]' "$2")
+    if [ -n "$_repl" ]; then
+      v=$(echo "$v" | tr -s '[:blank:]' "$_repl")
     fi
 
     # Removing everything after the first whitespace character
@@ -131,14 +137,16 @@ normalize_version() {
     # Removing illegal characters for filenames
     v=$(normalize_filename "$v")
 
-    # Use lowercased 'v' prefix for version string
-    if echo "$v" | grep -qe '^V[0-9]\+' ; then
-      v="v${v:1}"
-    fi
+    if [ $_beautify -eq 1 ]; then
+      # Use lowercased 'v' prefix for version string
+      if echo "$v" | grep -qe '^V[0-9]\+' ; then
+        v="v${v:1}"
+      fi
 
-    # Version string uses 'v' prefix
-    if echo "$v" | grep -qe '^[0-9]\+' ; then
-      v="v$v"
+      # Version string uses 'v' prefix
+      if echo "$v" | grep -qe '^[0-9]\+' ; then
+        v="v$v"
+      fi
     fi
 
     echo "$v"

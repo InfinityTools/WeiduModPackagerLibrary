@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 2.3
+# Version 2.4
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -113,6 +113,18 @@
 # Supported parameters: false, true, 0, 1
 # Default: false
 
+# beautify={boolean}
+# This parameter specifies whether version strings should be "beautified".
+# When enabled then
+# - version numbers are prefixed with a "v"
+# - Capital letter "V" prefix is lowercased
+# - spaces between "v" and the version number are removed
+# Default: true
+
+# lower_case={boolean}
+# This parameter specifies whether the whole mod package filename should be lowercased.
+# Default: false
+
 #####################################
 #     Start of script execution     #
 #####################################
@@ -131,6 +143,8 @@
 # - package_name_format:  Argument of the "name_fmt=" parameter
 # - multi_autoupdate:     Argument of the "multi_autoupdate=" parameter
 # - case_sensitive:       Argument of the "case_sensitive=" parameter
+# - beautify:             Argument of the "beautify=" parameter
+# - lower_case:           Argument of the "lower_case=" parameter
 # - weidu_url_base:       Base URL for the JSON release definition.
 # - weidu_min:            Supported minimum WeiDU version
 # - weidu_info[*]         Associative array with WeiDU-specific information
@@ -310,7 +324,7 @@ while [ -n "$tp2_result" ]; do
   if [ "$suffix" = "version" ]; then
     version_suffix=$(get_tp2_version "$tp2_file")
   fi
-  version_suffix=$(normalize_version "$version_suffix" "_")
+  version_suffix=$(normalize_version "$version_suffix" "$beautify" "_")
   echo "Version suffix: $version_suffix"
 
   # getting mod folder and (optional) tp2 file paths
@@ -351,6 +365,9 @@ while [ -n "$tp2_result" ]; do
   # Assembling mod archive filename and path
   if [ -z "$archive_filename" ]; then
     archive_filename=$(create_package_name "$tp2_mod_path" "$version_suffix" "$ini_file")
+    if [ $lower_case -eq 1 ]; then
+      archive_filename=$(to_lower "$archive_filename")
+    fi
     archive_file_path="${root}/${archive_filename}"
   fi
 done

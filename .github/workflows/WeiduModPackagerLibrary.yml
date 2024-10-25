@@ -134,6 +134,24 @@ on:
         type: boolean
         default: false
 
+      # Specifies whether version strings should be "beautified".
+      # When enabled then:
+      # - Version numbers are prefixed with a lowercased "v"
+      # - A capital letter "V" prefix is lowercased
+      # - Whitespace between "v" and the version number is removed
+      beautify:
+        description: 'Specifies whether version strings in mod package names should be "beautified".'
+        required: false
+        type: boolean
+        default: true
+
+      # Specifies whether the mod package filename should be lowercased.
+      lower_case:
+        description: 'Specifies whether all letters in the mod package filename should be lowercased.'
+        required: false
+        type: boolean
+        default: false
+
     outputs:
       # Name of the created mod package.
       weidu_mod_package:
@@ -193,7 +211,9 @@ jobs:
               "prefix_mac=${{ inputs.prefix_macos }}" \
               "name_fmt=${{ inputs.name_fmt }}" \
               "multi_autoupdate=${{ inputs.multi_autoupdate }}" \
-              "case_sensitive=${{ inputs.case_sensitive }}" || exit 1
+              "case_sensitive=${{ inputs.case_sensitive }}" \
+              "beautify=${{ inputs.beautify }}" \
+              "lower_case=${{ inputs.lower_case }}" || exit 1
 
       - id: upload
         name: Upload asset to release

@@ -50,6 +50,10 @@ eval_arguments() {
         ;;
       case_sensitive=true | case_sensitive=false | case_sensitive=[0-1])
         ;;
+      beautify=true | beautify=false | beautify=[0-1])
+        ;;
+      lower_case=true | lower_case=false | lower_case[0-1])
+        ;;
       *)
         printerr "ERROR: Invalid argument: $1"
         return 1
@@ -382,6 +386,56 @@ eval_case_sensitive() {
 }
 
 
+# Prints whether version suffixes should be "beautified" to stdout, based on the given parameters.
+# Default: 1
+eval_beautify() {
+  ret_val=1
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^beautify=' ; then
+      param="${1#*=}"
+      case "${param,,}" in
+        false | 0)
+          ret_val=0
+          ;;
+        true | 1)
+          ret_val=1
+          ;;
+        *)
+          ;;
+      esac
+    fi
+    shift
+  done
+
+  echo "$ret_val"
+}
+
+
+# Prints whether mod package filenames should be lowercased to stdout, based on the given parameters.
+# Default: 0
+eval_lower_case() {
+  ret_val=0
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^lower_case=' ; then
+      param="${1#*=}"
+      case "${param,,}" in
+        false | 0)
+          ret_val=0
+          ;;
+        true | 1)
+          ret_val=1
+          ;;
+        *)
+          ;;
+      esac
+    fi
+    shift
+  done
+
+  echo "$ret_val"
+}
+
+
 #####################################
 #     Start of script execution     #
 #####################################
@@ -475,3 +529,9 @@ multi_autoupdate=$(eval_multi_autoupdate "$@")
 
 # Whether to preserve duplicate files in the mod that only differ by case
 case_sensitive=$(eval_case_sensitive "$@")
+
+# Whether version numbers should be beautified
+beautify=$(eval_beautify "$@")
+
+# Whether mod package filenames should be lowercased
+lower_case=$(eval_lower_case "$@")
