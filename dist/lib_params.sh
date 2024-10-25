@@ -421,9 +421,18 @@ fi
 weidu_version=$(eval_weidu "$@")
 echo "WeiDU version: $weidu_version"
 
-# WeiDU binary name
-bin_ext=$(get_bin_ext "$archive_type")
-weidu_bin="weidu$bin_ext"
+# Declaring empty associative array "weidu_info"
+# Elements can be initialized by the get_weidu_info() function
+declare -A weidu_info
+# Key names for the "weidu_info" array
+key_tag_name="tag_name" # GitHub tag name of the WeiDU binary release
+key_version="version"   # explicit WeiDU version (e.g. 249)
+key_stable="stable"     # indicates whether the current WeiDU version is stable (i.e. not beta or wip)
+key_arch="arch"         # architecture of the WeiDU binary
+key_url="url"           # Download URL of the WeiDU zip archive
+key_filename="filename" # Filename (without path) of the WeiDU zip archive
+key_size="size"         # File size of the WeiDU zip archive, in bytes
+key_bin="binary"        # Path of the local WeiDU binary (set by the WeiDU download function)
 
 # Optional extra string
 extra=$(eval_extra "$@")

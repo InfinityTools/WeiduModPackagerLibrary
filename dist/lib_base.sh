@@ -40,28 +40,20 @@ normalize_filename() {
     v="${v// - /-}" # purely cosmetic replacement
     v="${v//${remove_characters_regex}/}"
     v="${v//${special_characters_regex}/${replace}}"
-    v=$(echo "$v" | tr -dc '[:print:]')
+    v=$(echo "$v" | tr -d '[\000-\037]')  # remove non-printable characters
     echo "$v"
   fi
 }
 
 
 # Decodes specially encoded characters in the URL strings and prints it to stdout.
-# Expected parameter: string
+# Expected parameter: [string]
+# Decodes the piped string content if no parameter is specified.
 decode_url_string() {
   if [ $# -gt 0 ]; then
     echo "$1" | sed -e 's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' | xargs echo -e
-  fi
-}
-
-
-# Returns the file extension used by executables.
-# Expected parameters: platform
-get_bin_ext() {
-  if [ $# -gt 0 ]; then
-    if [ "$1" = "windows" ]; then
-      echo ".exe"
-    fi
+  else
+    sed -e 's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' | xargs echo -e
   fi
 }
 
@@ -159,7 +151,7 @@ normalize_version() {
 #####################################
 
 # Checking required tools
-for tool in "cat" "curl" "find" "grep" "jq" "sed" "tr" "unzip" "zip"; do
+for tool in "cat" "curl" "find" "grep" "head" "jq" "sed" "tr" "unzip" "zip" "zipinfo"; do
   if ! which $tool >/dev/null 2>&1; then
     printerr "ERROR: Tool not found: $tool"
     exit 1

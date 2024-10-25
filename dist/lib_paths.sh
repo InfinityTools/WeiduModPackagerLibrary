@@ -192,19 +192,30 @@ find_tp2() {
     fi
 
     # Checking old style tp2 location ([setup-]mymod.tp2 in root folder)
-    # Note: parsing BACKUP definitions may not handle unusual path constellations well, e.g. paths containing relative path placeholders
-    # String delimited by tilde signs (~)
-    backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+~' | sed -re 's/^\s*BACKUP\s+~([^~]+)~.*/\1/')
-    if [ -z "$backup_path" ]; then
-      # String delimited by double quotes (")
-      backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+"' | sed -re 's/^\s*BACKUP\s+"([^"]+)".*/\1/')
+    # Note: parsing BACKUP definitions may not handle unusual path definitions well, e.g. paths containing relative path placeholders
+    backup_path=""
+    line=$(cat "$tp2_path" | grep '^\s*BACKUP' | head -1)
+    if [ -n "$line" ]; then
+      # String can be delimited by tilde (~), quotation marks (") or percent signs (%)
+      for delim in '~' '"' '%'; do
+        pat="^[[:blank:]]*BACKUP[[:blank:]]*${delim}([^${delim}]*)${delim}?.*$"
+        if [[ "$line" =~ $pat ]]; then
+          backup_path="${BASH_REMATCH[1]}"
+          break
+        fi
+      done
+
       if [ -z "$backup_path" ]; then
-        # String delimited by percent signs (%)
-        backup_path=$(cat "$tp2_path" | grep '^\s*BACKUP\s\+%' | sed -re 's/^\s*BACKUP\s+%([^%]+)%.*/\1/')
-        if [ -z "$backup_path" ]; then
-          continue
+        # Special: String may not be delimited at all
+        pat="^[[:blank:]]*BACKUP[[:blank:]]+([^[:blank:]]*).*$"
+        if [[ "$line" =~ $pat ]]; then
+          backup_path="${BASH_REMATCH[1]}"
         fi
       fi
+    fi
+
+    if [ -z "$backup_path" ]; then
+      continue
     fi
 
     # Checking for malformed BACKUP definition
@@ -239,41 +250,26 @@ find_tp2() {
 # Expected parameters: tp2_mod_path, version, ini_file
 create_package_name() {
 (
-  if [ $# -gt 0 ]; then
-    tp2_mod_path="$1"
-  fi
-
-  if [ $# -gt 1 ]; then
-    version="$2"
-  fi
-
-  if [ $# -gt 2 ]; then
-    ini_file="$3"
-  fi
-
-  type="$archive_type"
+  tp2_mod_path="$1"
+  version="$2"
+  ini_file="$3"
+  case "$archive_type" in
+    macos)
+      type="MacOS"
+      ;;
+    *)
+      type="${archive_type^}"
+      ;;
+  esac
 
   if [ "$archive_type" = "iemod" ]; then
     archive_ext=".iemod"
     arch=""
   else
     archive_ext=".zip"
-
-    # TODO: This is a hack to quickly determine WeiDU architecture with a chance of getting a false positive.
-    #       A design change of the WeiDU-related functionality is needed to safely determine WeiDU architecture.
-    if [ "$archive_type" != "windows" ]; then
-      if [[ "$weidu_version" =~ ^[0-9]+$ ]]; then
-        if [ "$archive_type" = "linux" -a $weidu_version -eq 246 ]; then
-          if [ "$arch" = "x86-legacy" ]; then
-            arch="x86"
-          fi
-        else
-          arch=""
-        fi
-      else
-        arch=""
-      fi
-    fi
+    _type=$([ "$archive_type" = "multi" ] && echo "windows" || echo "$archive_type")
+    get_weidu_info "$_type" "$arch" "$weidu_version"
+    arch="${weidu_info[$key_arch]}"
   fi
 
   # Platform-specific prefix needed to prevent overwriting package files
@@ -308,9 +304,18 @@ create_package_name() {
 
     # Fetch "name" value from ini file
     if [ -n "$ini_path" -a -f "$ini_path" ]; then
-      name=$(cat "$ini_path" | grep -e '^\s*Name\s*=.*' | sed -re 's/^\s*Name\s*=(.*)/\1/' | trim "\"'")
+      name=""
+      line=$(cat "$ini_path" | grep -e '^[[:blank:]]*Name[[:blank:]]*=' | head -1)
+      if [ -n "$line" ]; then
+        pat="^[[:blank:]]*Name[[:blank:]]*=[[:blank:]]*(.*)$"
+        if [[ "$line" =~ $pat ]]; then
+          # Silently remove quotation marks in the name string
+          name="${BASH_REMATCH[1]//\"/}"
+        fi
+      fi
+      
       if [ -n "$name" ]; then
-        archive_filebase=$(normalize_filename "$name" | tr " " "-")
+        archive_filebase=$(normalize_filename "$name" | tr -s " " "-")
       fi
     fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright (c) 2024 Argent77
-# Version 2.2
+# Version 2.3
 
 # Supported parameters for script execution:
 # type={archive_type}
@@ -133,8 +133,7 @@
 # - case_sensitive:       Argument of the "case_sensitive=" parameter
 # - weidu_url_base:       Base URL for the JSON release definition.
 # - weidu_min:            Supported minimum WeiDU version
-# - bin_ext:              File extension of executable files (".exe" on Windows, empty string otherwise)
-# - weidu_bin:            Filename of the WeiDU binary (irrelevant for archive types "iemod" and "multi")
+# - weidu_info[*]         Associative array with WeiDU-specific information
 
 # Prints a specified message to stderr.
 printerr() {
@@ -209,20 +208,19 @@ while [ -n "$tp2_result" ]; do
       removables+=("weidu_external")
 
       # Downloading WeiDU binaries
-      weidu_bin="weidu"
       for folder in "osx" "unix"; do
         if [ "$folder" = "osx" ]; then
           os="macos"
         else
           os="linux"
         fi
-        echo "Downloading WeiDU executable: $weidu_bin ($os, $arch)"
-        download_weidu "$os" "$arch" "$weidu_version" "$weidu_bin" "weidu_external/tools/weidu/$folder"
+        echo "Downloading WeiDU executable for: $os ($arch)"
+        download_weidu "$os" "$arch" "$weidu_version" "weidu_external/tools/weidu/$folder"
         if [ $? -ne 0 ]; then
           clean_up "${removables[@]}"
           exit 1
         fi
-        echo "weidu_external/tools/weidu/$folder/$weidu_bin" >>"$zip_include"
+        echo "${weidu_info[$key_bin]}" >>"$zip_include"
       done
     fi
     # Setting up setup scripts for Linux and macOS
@@ -240,16 +238,16 @@ while [ -n "$tp2_result" ]; do
     echo "Setup name: ${setup_script_base}.sh"
 
     # Installing Windows setup binary
-    weidu_bin="weidu.exe"
-    if [ ! -e "$weidu_bin" ]; then
+    weidu_bin=$(get_weidu_binary_name "windows")
+    if [ ! -f "$weidu_bin" ]; then
       # Downloading WeiDU binary
-      echo "Downloading WeiDU executable: $weidu_bin (windows)"
-      download_weidu "windows" "$arch" "$weidu_version" "$weidu_bin"
+      echo "Downloading WeiDU executable for: windows, $arch"
+      download_weidu "windows" "$arch" "$weidu_version"
       if [ $? -ne 0 ]; then
         clean_up "${removables[@]}"
         exit 1
       fi
-      if [ ! -e "$weidu_bin" ]; then
+      if [ ! -f "${weidu_info[$key_bin]}" ]; then
         printerr "ERROR: Could not find WeiDU binary on the system."
         clean_up "${removables[@]}"
         exit 1
@@ -268,7 +266,8 @@ while [ -n "$tp2_result" ]; do
     removables+=("$setup_file")
     echo "Setup name: $setup_file"
   elif [ "$archive_type" != "iemod" ]; then
-    if [ ! -e "$weidu_bin" ]; then
+    weidu_bin=$(get_weidu_binary_name)
+    if [ ! -f "$weidu_bin" ]; then
       # Downloading WeiDU binary
       echo "Downloading WeiDU executable: $weidu_bin ($archive_type)"
       download_weidu "$archive_type" "$arch" "$weidu_version"
@@ -276,17 +275,17 @@ while [ -n "$tp2_result" ]; do
         clean_up "${removables[@]}"
         exit 1
       fi
-      if [ ! -e "$weidu_bin" ]; then
+      if [ ! -f "${weidu_info[$key_bin]}" ]; then
         printerr "ERROR: Could not find WeiDU binary on the system."
         clean_up "${removables[@]}"
         exit 1
       fi
-      removables+=("$weidu_bin")
+      removables+=("${weidu_info[$key_bin]}")
       echo "WeiDU binary: $weidu_bin"
     fi
 
     # Setting up setup binaries
-    create_setup_binaries "$weidu_bin" "$tp2_file" "$archive_type"
+    create_setup_binaries "${weidu_info[$key_bin]}" "$tp2_file" "$archive_type"
     if [ $? -ne 0 ]; then
       printerr "ERROR: Could not create setup binaries."
       clean_up "${removables[@]}"
