@@ -118,6 +118,16 @@ on:
         type: string
         default: '<%os_prefix%-><%base_name%><-%extra%><-%version%>'
 
+      # Defines the list of platforms for which setup binaries should be included in multi-platform mod packages.
+      # Individual platforms are separated by colons (:). Package type is treated as a regular platform-specific
+      # zip archive if only a single platform is specified.
+      # Supported platforms: linux, macos, windows
+      multi_platforms:
+        description: 'Defines the list of platforms for which setup binaries should be included in multi-platform mod packages.'
+        required: false
+        type: string
+        default: 'linux:macos:windows'
+
       # Whether setup scripts in multi-platform mod packages should auto-update the WeiDU binary.
       multi_autoupdate:
         description: 'Specifies whether to enable or disable the WeiDU auto-update feature in setup scripts of multi-platform zip archives.'
@@ -210,6 +220,7 @@ jobs:
               "prefix_lin=${{ inputs.prefix_linux }}" \
               "prefix_mac=${{ inputs.prefix_macos }}" \
               "name_fmt=${{ inputs.name_fmt }}" \
+              "multi_platforms=${{ inputs.multi_platforms }}" \
               "multi_autoupdate=${{ inputs.multi_autoupdate }}" \
               "case_sensitive=${{ inputs.case_sensitive }}" \
               "beautify=${{ inputs.beautify }}" \

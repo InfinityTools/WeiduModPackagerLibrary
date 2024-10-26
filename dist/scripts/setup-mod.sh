@@ -84,10 +84,13 @@ get_bin_version() {
     if test -x "$1" ; then
       v=$("$1" --version 2>/dev/null)
       if test $? -eq 0 ; then
-        v=$(echo "$v" | sed -re 's/^.*\[.+\][^0-9]+([0-9]+).*/\1/')
-        if $(echo "$v" | grep -qe '^[0-9]\+$') ; then
-          echo "$v"
-          return
+        sig=$(echo "$v" | sed -re 's/^.*\[.+\]([^0-9]+).*/\1/')
+        if echo "$sig" | grep -F -qe 'WeiDU' ; then
+          v=$(echo "$v" | sed -re 's/^.*\[.+\][^0-9]+([0-9]+).*/\1/')
+          if $(echo "$v" | grep -qe '^[0-9]\+$') ; then
+            echo "$v"
+            return
+          fi
         fi
       fi
     fi

@@ -46,6 +46,8 @@ eval_arguments() {
         ;;
       name_fmt=*)
         ;;
+      multi_platforms=*)
+        ;;
       multi_autoupdate=true | multi_autoupdate=false | multi_autoupdate=[0-1])
         ;;
       case_sensitive=true | case_sensitive=false | case_sensitive=[0-1])
@@ -334,6 +336,39 @@ eval_name_format() {
 }
 
 
+# Prints a colon-separated list of platforms to include in multi-platform mod packages to stdout,
+# based on the given parameters.
+# Default: linux:macos:windows
+eval_multi_platforms() {
+(
+  ret_val="linux:macos:windows"
+  declare -A _platforms
+  while [ $# -gt 0 ]; do
+    if echo "$1" | grep -qe '^multi_platforms=' ; then
+      param="${1#*=}"
+      param="${param,,}"
+      for item in ${param//:/$IFS}; do
+        case "$item" in
+          linux | macos | windows)
+            _platforms[$item]="$item"
+            ;;
+          *)
+            ;;
+        esac
+      done
+    fi
+    shift
+  done
+
+  if [ ${#_platforms[@]} -gt 0 ]; then
+    ret_val=$(IFS=":"; echo "${_platforms[*]}")
+  fi
+
+  echo "$ret_val"
+)
+}
+
+
 # Prints the enabled state of autoupdate feature for multi-platform package types to stdout,
 # based on the given parameters.
 # Default: 1
@@ -451,7 +486,26 @@ eval_arguments "$@" || exit 1
 
 # Supported types: iemod, windows, linux, macos, multi
 archive_type=$(eval_type "$@")
+
+# Preparing platforms for multi-platform mod packages
+declare -A multi_platforms
+if [ "$archive_type" = "multi" ]; then
+  multi_platforms_string=$(eval_multi_platforms "$@")
+  for item in ${multi_platforms_string//:/$IFS}; do
+    multi_platforms["$item"]="$item"
+  done
+
+  # Turn into a regular platform-specific archive if only a single platform is defined
+  if [ ${#multi_platforms[@]} -eq 1 ]; then
+    for item in ${multi_platforms[@]}; do
+      archive_type="$item"
+    done
+  fi
+fi
 echo "Archive type: $archive_type"
+if [ "$archive_type" = "multi" ]; then
+  echo "Supported platforms: ${multi_platforms_string//:/, }"
+fi
 
 # Supported architectures: amd64, x86, x86-legacy
 arch=$(eval_arch "$@")
@@ -523,15 +577,20 @@ fi
 
 # The package name format as a template string
 package_name_format=$(eval_name_format "$@")
+echo "Package name format: $package_name_format"
 
 # Enabled state of autoupdate feature for multi-platform mod packages
 multi_autoupdate=$(eval_multi_autoupdate "$@")
+echo "Autoupdate setup scripts: $multi_autoupdate"
 
 # Whether to preserve duplicate files in the mod that only differ by case
 case_sensitive=$(eval_case_sensitive "$@")
+echo "Case sensitive mod files: $case_sensitive"
 
 # Whether version numbers should be beautified
 beautify=$(eval_beautify "$@")
+echo "Beautify package name: $beautify"
 
 # Whether mod package filenames should be lowercased
 lower_case=$(eval_lower_case "$@")
+echo "Lowercase package name: $lower_case"
