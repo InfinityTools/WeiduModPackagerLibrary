@@ -162,6 +162,13 @@ on:
         type: boolean
         default: false
 
+      # Specifies whether submodules defined in the repository should be checked out. Supported values: false, true, recursive
+      include_submodules:
+        description: 'Specifies whether submodules defined in the repository should be checked out. Supported values: false, true, recursive'
+        required: false
+        type: string
+        default: 'false'
+
     outputs:
       # Name of the created mod package.
       weidu_mod_package:
@@ -199,6 +206,7 @@ jobs:
           repository: InfinityTools/WeiduModPackagerLibrary
           path: .weidu_packager
           sparse-checkout: dist
+          submodules: ${{ inputs.include_submodules }}
 
       - id: setup_actions
         name: Set up environment variables for packager repository
