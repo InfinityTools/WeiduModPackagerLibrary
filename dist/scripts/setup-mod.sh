@@ -31,6 +31,9 @@ esac
 # Determining architecture
 uname_arch="$(uname -m)"
 case "${uname_arch}" in
+  arm64)
+    arch="arm64"
+    ;;
   amd64 | x86_64 | arm64)
     arch="amd64"
     ;;

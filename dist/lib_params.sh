@@ -14,7 +14,7 @@ eval_arguments() {
     case $1 in
       type= | type=iemod | type=windows | type=linux | type=macos | type=multi)
         ;;
-      arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy)
+      arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy | arch=arm64)
         ;;
       suffix=*)
         ;;
@@ -54,7 +54,7 @@ eval_arguments() {
         ;;
       beautify=true | beautify=false | beautify=[0-1])
         ;;
-      lower_case=true | lower_case=false | lower_case[0-1])
+      lower_case=true | lower_case=false | lower_case=[0-1])
         ;;
       *)
         printerr "ERROR: Invalid argument: $1"
@@ -85,6 +85,7 @@ eval_type() {
           ret_val="$param"
           ;;
       esac
+      break
     fi
     shift
   done
@@ -127,6 +128,7 @@ eval_suffix() {
           fi
           ;;
       esac
+      break
     fi
     shift
   done
@@ -139,6 +141,7 @@ eval_suffix() {
 # Default: amd64
 # This parameter is currently only relevant for the Windows archive type.
 # Supported architectures:
+#   arm64:      Includes a 64-bit setup binary for macOS arm64 architecture.
 #   amd64:      Includes a 64-bit setup binary.
 #   x86:        Includes a 32-bit setup binary.
 #   x86-legacy: Includes a 32-bit setup binary with legacy Window support.
@@ -151,10 +154,11 @@ eval_arch() {
     if echo "$1" | grep -qe '^arch=' ; then
       param=$(echo "${1#*=}" | tr '_' '-')
       case $param in
-        amd64 | x86 | x86-legacy)
+        amd64 | x86 | x86-legacy | arm64)
           ret_val="$param"
           ;;
       esac
+      break
     fi
     shift
   done
@@ -172,6 +176,7 @@ eval_weidu() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^weidu=' ; then
       ret_val="${1#*=}"
+      break
     fi
     shift
   done
@@ -189,6 +194,7 @@ eval_extra() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^extra=' ; then
       ret_val=$(normalize_filename "${1#*=}" | trim)
+      break
     fi
     shift
   done
@@ -219,6 +225,7 @@ eval_naming() {
           fi
           ;;
       esac
+      break
     fi
     shift
   done
@@ -250,6 +257,7 @@ eval_prefix_win() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_win=' ; then
       ret_val="${1#*=}"
+      break
     fi
     shift
   done
@@ -266,6 +274,7 @@ eval_prefix_lin() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_lin=' ; then
       ret_val="${1#*=}"
+      break
     fi
     shift
   done
@@ -282,6 +291,7 @@ eval_prefix_mac() {
   while [ $# -gt 0 ]; do
     if echo "$1" | grep -qe '^prefix_mac=' ; then
       ret_val="${1#*=}"
+      break
     fi
     shift
   done
@@ -306,6 +316,7 @@ eval_tp2_name() {
         param="${param:6}"
       fi
       ret_val="$param"
+      break
     fi
     shift
   done
@@ -324,6 +335,7 @@ eval_name_format() {
       if [ -n "$param" ]; then
         ret_val="$param"
       fi
+      break
     fi
     shift
   done
@@ -356,6 +368,7 @@ eval_multi_platforms() {
             ;;
         esac
       done
+      break
     fi
     shift
   done
@@ -387,6 +400,7 @@ eval_multi_autoupdate() {
         *)
           ;;
       esac
+      break
     fi
     shift
   done
@@ -413,6 +427,7 @@ eval_case_sensitive() {
         *)
           ;;
       esac
+      break
     fi
     shift
   done
@@ -438,6 +453,7 @@ eval_beautify() {
         *)
           ;;
       esac
+      break
     fi
     shift
   done
@@ -463,6 +479,7 @@ eval_lower_case() {
         *)
           ;;
       esac
+      break
     fi
     shift
   done
@@ -507,7 +524,7 @@ if [ "$archive_type" = "multi" ]; then
   echo "Supported platforms: ${multi_platforms_string//:/, }"
 fi
 
-# Supported architectures: amd64, x86, x86-legacy
+# Supported architectures: amd64, x86, x86-legacy, arm64
 arch=$(eval_arch "$@")
 if [ "$archive_type" = "iemod" ]; then
   echo "Architecture: <platform-neutral>"

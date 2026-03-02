@@ -14,7 +14,7 @@ on:
         default: 'iemod'
 
       # Determines the architecture of the included setup binary.
-      # Supported values: amd64, x86, x86-legacy
+      # Supported values: amd64, x86, x86-legacy, arm64
       architecture:
         description: 'Architecture of the included setup binary'
         required: false

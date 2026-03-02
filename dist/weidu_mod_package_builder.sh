@@ -25,7 +25,7 @@
 # This parameter determines the architecture of the included setup binary.
 # It is currently only effective for Windows. Other platforms provide architecture-specific binaries
 # only for WeiDU version 246.
-# Supported architectures: amd64, x86, x86-legacy
+# Supported architectures: amd64, x86, x86-legacy, arm64
 # - x86-legacy: Specify this option to include a special WeiDU binary that is compatible with
 #               older Windows versions and does not mangle non-ASCII characters in resource
 #               filenames. This can be useful for specific mods, such as Generalized Biffing 
@@ -138,7 +138,7 @@
 
 # Global variables:
 # - archive_type:         Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
-# - arch:                 Argument of the "arch=" parameter (amd64, x86, x86-legacy)
+# - arch:                 Argument of the "arch=" parameter (amd64, x86, x86-legacy, arm64)
 # - suffix:               Argument of the "suffix=" parameter (version, none, or <literal string>)
 # - extra:                Argument of the "extra=" parameter
 # - naming:               Argument of the "naming=" parameter (ini, tp2, or <literal string>)
@@ -294,6 +294,7 @@ while [ -n "$tp2_result" ]; do
       echo "Setup name: $setup_file"
     fi
   elif [ "$archive_type" != "iemod" ]; then
+    # single-platform archive (except iemod)
     weidu_bin=$(get_weidu_binary_name)
     if [ ! -f "$weidu_bin" ]; then
       # Downloading WeiDU binary

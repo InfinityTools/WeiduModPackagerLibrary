@@ -103,6 +103,15 @@ get_weidu_info() {
     return 1
   fi
 
+  # Default pattern for WeiDU naming scheme
+  # Pattern groups: 1=os, 2=version, 3=[arch]
+  _pat_weidu_name="^WeiDU-([^-.]+)-([^-.]+)-?(.*)\.zip$"
+
+  # macOS arm64 architecture does not exist for WeiDU versions < 251
+  if [ "$_version" -lt 251 -a "$_weidu_arch" = "arm64" ]; then
+    _weidu_arch="amd64"
+  fi
+
   # Adjusting parameters to current WeiDU version
   case $_version in
     246)
@@ -132,6 +141,20 @@ get_weidu_info() {
         _req_arch="$_weidu_arch"
       fi
       ;;
+    251)
+      # Naming scheme has changed
+      # New macOS architecture: arm64
+      # Architecture suffixes were removed except for macOS arm64 and Windows legacy
+      # Windows x86 version was removed; x86-legacy version fills that spot
+      if [ "$_weidu_os" = "Windows" -a "$_weidu_arch" = "x86" ]; then
+        _weidu_arch="x86-legacy"
+      fi
+      _req_arch="$_weidu_arch"
+
+      # New pattern for WeiDU naming scheme
+      # Pattern groups: 1=os, 2=[-ARM], 3=version, 4=[+legacy]
+      _pat_weidu_name="^WeiDU-([^-.]+)(-ARM)?-([^-+.]+)(\+legacy)?\.zip$"
+      ;;
     *)
       # non-Windows platforms dropped x86 architecture
       if [ "$_weidu_os" != "Windows" ]; then
@@ -150,8 +173,6 @@ get_weidu_info() {
   weidu_info[$key_filename]=""
   weidu_info[$key_size]=0
 
-  # Pattern groups: 1=os, 2=version, 3=[arch]
-  _pat_weidu_name="^WeiDU-([^-.]+)-([^-.]+)-?(.*)\.zip$"
   _asset_count=$(echo "$_weidu_json" | jq -r '.assets | length')
   if [ $? -ne 0 ]; then
     printerr "ERROR: Could not parse WeiDU release information"
@@ -165,9 +186,24 @@ get_weidu_info() {
     fi
     _name=$(decode_url_string "${_url##*/}")
     if [[ "$_name" =~ $_pat_weidu_name ]]; then
-      _os="${BASH_REMATCH[1]}"
-      _ver="${BASH_REMATCH[2]}"
-      _arch="${BASH_REMATCH[3]}"
+      case $_version in
+        251)
+          _os="${BASH_REMATCH[1]}"
+          _ver="${BASH_REMATCH[3]}"
+          if [ -n "${BASH_REMATCH[2]}" ]; then
+            _arch="arm64"
+          elif [ -n "${BASH_REMATCH[4]}" ]; then
+            _arch="x86-legacy"
+          else
+            _arch="amd64"
+          fi
+          ;;
+        *)
+          _os="${BASH_REMATCH[1]}"
+          _ver="${BASH_REMATCH[2]}"
+          _arch="${BASH_REMATCH[3]}"
+          ;;
+      esac
     fi
 
     if [ "$_os" = "$_weidu_os" ]; then
