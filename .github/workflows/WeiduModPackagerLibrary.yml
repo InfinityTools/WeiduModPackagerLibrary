@@ -237,8 +237,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: InfinityTools/WeiduModPackagerLibrary
-          # TODO: remove "ref" later
-          ref: devel
           path: .weidu_packager
           sparse-checkout: dist
 
