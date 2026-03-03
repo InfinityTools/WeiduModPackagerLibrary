@@ -16,6 +16,12 @@ eval_arguments() {
         ;;
       arch= | arch=amd64 | arch=x86 | arch=x86-legacy | arch=x86_legacy | arch=arm64)
         ;;
+      arch_win= | arch_win=amd64 | arch_win=x86 | arch_win=x86-legacy)
+        ;;
+      arch_lin= | arch_lin=amd64 | arch_lin=x86)
+        ;;
+      arch_mac= | arch_mac=amd64 | arch_mac=arm64)
+        ;;
       suffix=*)
         ;;
       weidu=*)
@@ -139,7 +145,7 @@ eval_suffix() {
 
 # Prints the architecture of the WeiDU binary to stdout, based on the given parameters.
 # Default: amd64
-# This parameter is currently only relevant for the Windows archive type.
+# This parameter is currently only relevant for the Windows and macOS archive types.
 # Supported architectures:
 #   arm64:      Includes a 64-bit setup binary for macOS arm64 architecture.
 #   amd64:      Includes a 64-bit setup binary.
@@ -162,6 +168,34 @@ eval_arch() {
     fi
     shift
   done
+
+  echo "$ret_val"
+}
+
+
+# Prints the architecture of the WeiDU binary for the specified platform to stdout, based on the given parameters.
+# Default: amd64 for Windows and Linux, arm64 for macOS
+# This parameter is currently only relevant for the Windows and macOS archive types.
+# Pass the platform prefix (win, lin, mac) and $@ to the function.
+eval_arch_os() {
+  ret_val=""
+  if [ $# -gt 0 ]; then
+    local os="$1"
+    shift
+
+    while [ $# -gt 0 ]; do
+      if echo "$1" | grep -qe "^arch_${os}=" ; then
+        param=$(echo "${1#*=}" | tr '_' '-')
+        case $param in
+          amd64 | x86 | x86-legacy | arm64)
+            ret_val="$param"
+            ;;
+        esac
+        break
+      fi
+      shift
+    done
+  fi
 
   echo "$ret_val"
 }
@@ -530,6 +564,22 @@ if [ "$archive_type" = "iemod" ]; then
   echo "Architecture: <platform-neutral>"
 else
   echo "Architecture: $arch"
+fi
+
+# Architecture overrides
+arch_win=$(eval_arch_os "win" "$@")
+if [ -n "$arch_win" ]; then
+  echo "Windows architecture override: $arch_win"
+fi
+
+arch_lin=$(eval_arch_os "lin" "$@")
+if [ -n "$arch_lin" ]; then
+  echo "Linux architecture override: $arch_lin"
+fi
+
+arch_mac=$(eval_arch_os "mac" "$@")
+if [ -n "$arch_mac" ]; then
+  echo "macOS architecture override: $arch_mac"
 fi
 
 # Supported suffixes: none, version, <literal string>

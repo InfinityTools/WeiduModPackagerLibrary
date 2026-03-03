@@ -412,9 +412,36 @@ resolve_template_group() {
 
 # Resolves a template string with placeholders and prints the result to stdout.
 # Expected parameters: template_string
-# Variables must already be defined: type, arch, os_prefix, base_name, extra, version
+# Variables must already be defined: type, arch, arch_win/lin/mac, os_prefix, base_name, extra, version
 resolve_name_template() {
 (
+  # platform-specific architecture definitions will override global architecture variable
+  local arch="$arch"
+  case $type in
+    [Ii]emod | [Mm]ulti)
+      arch=""
+      ;;
+    *)
+      case $type in
+        windows)
+          if [ -n "$arch_win" ]; then
+            arch="$arch_win"
+          fi
+          ;;
+        linux)
+          if [ -n "$arch_lin" ]; then
+            arch="$arch_lin"
+          fi
+          ;;
+        macos)
+          if [ -n "$arch_mac" ]; then
+            arch="$arch_mac"
+          fi
+          ;;
+      esac
+      ;;
+  esac
+
   if [ $# -gt 0 ]; then
     template="$1"
 

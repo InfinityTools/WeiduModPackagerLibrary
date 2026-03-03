@@ -23,14 +23,34 @@
 
 # arch={architecture}
 # This parameter determines the architecture of the included setup binary.
-# It is currently only effective for Windows. Other platforms provide architecture-specific binaries
-# only for WeiDU version 246.
+# It is currently only effective for Windows and macOS.
 # Supported architectures: amd64, x86, x86-legacy, arm64
 # - x86-legacy: Specify this option to include a special WeiDU binary that is compatible with
 #               older Windows versions and does not mangle non-ASCII characters in resource
 #               filenames. This can be useful for specific mods, such as Generalized Biffing 
 #               in conjunction with Infinity Animations.
 # Default architecture: amd64
+
+# arch_win={architecture}
+# This parameter determines the architecture of the included Windows setup binary.
+# It can be used for multi-platform packages to further customize the architecture of the setup binary.
+# This parameter overrides the "arch" parameter if specified.
+# Supported architectures: amd64, x86, x86-legacy
+# Default: <empty string>
+
+# arch_lin={architecture}
+# This parameter determines the architecture of the included Linux setup binary.
+# It can be used for multi-platform packages to further customize the architecture of the setup binary.
+# This parameter overrides the "arch" parameter if specified.
+# Supported architectures: amd64, x86
+# Default: <empty string>
+
+# arch_mac={architecture}
+# This parameter determines the architecture of the included macOS setup binary.
+# It can be used for multi-platform packages to further customize the architecture of the setup binary.
+# This parameter overrides the "arch" parameter if specified.
+# Supported architectures: amd64, arm64
+# Default: <empty string>
 
 # suffix={type_or_string}
 # Supported suffix types: version, none. Everything else is treated as a literal string.
@@ -83,7 +103,8 @@
 # characters and are replaced by the standard placeholder character.
 # Supported placeholder variables:
 # type        Specifies the package type (as defined by the "type" parameter).
-# arch        Specifies the architecture of the WeiDU binary (as defined by the "arch" parameter).
+# arch        Specifies the architecture of the WeiDU binary (as defined by the "arch" parameter
+#             or its more specialized "arch_win/lin/mac" parameter).
 #             This variable is empty for iemod package types.
 # os_prefix   Specifies the platform-specific prefix (as defined by "prefix_win", "prefix_lin", and
 #             "prefix_mac"). This variable is empty for "iemod" and "multi" package types.
@@ -139,6 +160,9 @@
 # Global variables:
 # - archive_type:         Argument of the "type=" parameter (iemod, windows, linux, macos, multi)
 # - arch:                 Argument of the "arch=" parameter (amd64, x86, x86-legacy, arm64)
+# - arch_win:             Argument of the "arch_win=" parameter (amd64, x86, x86-legacy)
+# - arch_lin:             Argument of the "arch_lin=" parameter (amd64, x86)
+# - arch_mac:             Argument of the "arch_mac=" parameter (amd64, arm64)
 # - suffix:               Argument of the "suffix=" parameter (version, none, or <literal string>)
 # - extra:                Argument of the "extra=" parameter
 # - naming:               Argument of the "naming=" parameter (ini, tp2, or <literal string>)
@@ -237,8 +261,9 @@ while [ -n "$tp2_result" ]; do
           os="linux"
         fi
         if [ -n "${multi_platforms[$os]}" ]; then
-          echo "Downloading WeiDU executable for: $os ($arch)"
-          download_weidu "$os" "$arch" "$weidu_version" "weidu_external/tools/weidu/$folder"
+          cur_arch=$(get_architecture "$os")
+          echo "Downloading WeiDU executable for: $os ($cur_arch)"
+          download_weidu "$os" "$cur_arch" "$weidu_version" "weidu_external/tools/weidu/$folder"
           if [ $? -ne 0 ]; then
             clean_up "${removables[@]}"
             exit 1
@@ -268,8 +293,9 @@ while [ -n "$tp2_result" ]; do
       weidu_bin=$(get_weidu_binary_name "windows")
       if [ ! -f "$weidu_bin" ]; then
         # Downloading WeiDU binary
-        echo "Downloading WeiDU executable for: windows, $arch"
-        download_weidu "windows" "$arch" "$weidu_version"
+        cur_arch=$(get_architecture "windows")
+        echo "Downloading WeiDU executable for: windows, $cur_arch"
+        download_weidu "windows" "$cur_arch" "$weidu_version"
         if [ $? -ne 0 ]; then
           clean_up "${removables[@]}"
           exit 1
@@ -298,8 +324,9 @@ while [ -n "$tp2_result" ]; do
     weidu_bin=$(get_weidu_binary_name)
     if [ ! -f "$weidu_bin" ]; then
       # Downloading WeiDU binary
+      cur_arch=$(get_architecture "$archive_type")
       echo "Downloading WeiDU executable: $weidu_bin ($archive_type)"
-      download_weidu "$archive_type" "$arch" "$weidu_version"
+      download_weidu "$archive_type" "$cur_arch" "$weidu_version"
       if [ $? -ne 0 ]; then
         clean_up "${removables[@]}"
         exit 1

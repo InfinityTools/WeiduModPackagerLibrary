@@ -14,12 +14,43 @@ on:
         default: 'iemod'
 
       # Determines the architecture of the included setup binary.
+      # This parameter can be overridden by the platform-specific architecture parameters.
       # Supported values: amd64, x86, x86-legacy, arm64
       architecture:
         description: 'Architecture of the included setup binary'
         required: false
         type: string
         default: 'amd64'
+
+      # Determines the architecture of the included Windows setup binary.
+      # It can be used for multi-platform packages to further customize the architecture of the Windows setup binary.
+      # This parameter overrides "architecture" if specified.
+      # Supported values: amd64, x86, x86-legacy
+      architecture_windows:
+        description: 'Architecture override of the included setup binary for Windows'
+        required: false
+        type: string
+        default: ''
+
+      # Determines the architecture of the included Linux setup binary.
+      # It can be used for multi-platform packages to further customize the architecture of the Linux setup binary.
+      # This parameter overrides "architecture" if specified.
+      # Supported values: amd64, x86
+      architecture_linux:
+        description: 'Architecture override of the included setup binary for Linux'
+        required: false
+        type: string
+        default: ''
+
+      # Determines the architecture of the included macOS setup binary.
+      # It can be used for multi-platform packages to further customize the architecture of the macOS setup binary.
+      # This parameter overrides "architecture" if specified.
+      # Supported values: amd64, arm64
+      architecture_macos:
+        description: 'Architecture override of the included setup binary for macOS'
+        required: false
+        type: string
+        default: ''
 
       # Suffix to add to the mod package filename.
       # Supported values: version, none. Anything else is treated as a literal string.
@@ -220,6 +251,9 @@ jobs:
           $PACKAGER_PATH/weidu_mod_package_builder.sh \
               "type=${{ inputs.type }}" \
               "arch=${{ inputs.architecture }}" \
+              "arch_win=${{ inputs.architecture_windows }}" \
+              "arch_lin=${{ inputs.architecture_linux }}" \
+              "arch_mac=${{ inputs.architecture_macos }}" \
               "suffix=${{ inputs.suffix }}" \
               "weidu=${{ inputs.weidu_version }}" \
               "extra=${{ inputs.extra }}" \

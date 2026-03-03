@@ -107,9 +107,11 @@ get_weidu_info() {
   # Pattern groups: 1=os, 2=version, 3=[arch]
   _pat_weidu_name="^WeiDU-([^-.]+)-([^-.]+)-?(.*)\.zip$"
 
-  # macOS arm64 architecture does not exist for WeiDU versions < 251
-  if [ "$_version" -lt 251 -a "$_weidu_arch" = "arm64" ]; then
-    _weidu_arch="amd64"
+  # macOS arm64 architecture is only available for macOS on WeiDU version >= 251
+  if [ "$_weidu_arch" = "arm64" ]; then
+    if [ "$_version" -lt 251 -o "$_weidu_os" != "Mac" ]; then
+      _weidu_arch="amd64"
+    fi
   fi
 
   # Adjusting parameters to current WeiDU version
@@ -141,7 +143,14 @@ get_weidu_info() {
         _req_arch="$_weidu_arch"
       fi
       ;;
-    251)
+    24[89])
+      # non-Windows platforms dropped x86 architecture
+      if [ "$_weidu_os" != "Windows" ]; then
+        _weidu_arch="amd64"
+      fi
+      _req_arch="$_weidu_arch"
+      ;;
+    25[0-9])
       # Naming scheme has changed
       # New macOS architecture: arm64
       # Architecture suffixes were removed except for macOS arm64 and Windows legacy
@@ -156,11 +165,8 @@ get_weidu_info() {
       _pat_weidu_name="^WeiDU-([^-.]+)(-ARM)?-([^-+.]+)(\+legacy)?\.zip$"
       ;;
     *)
-      # non-Windows platforms dropped x86 architecture
-      if [ "$_weidu_os" != "Windows" ]; then
-        _weidu_arch="amd64"
-      fi
-      _req_arch="$_weidu_arch"
+      printerr "ERROR: Unsupported WeiDU version specified: $_version"
+      return 1
       ;;
   esac
 
@@ -415,5 +421,35 @@ get_tp2_version() {
 
     echo "$v"
   fi
+)
+}
+
+# Returns the preferred architecture for the specified platform.
+# Expected parameters: platform (windows, linux, macos)
+# Returns the architecture defined for that platform.
+get_architecture() {
+(
+  a="$arch"
+  if [ $# -gt 0 ]; then
+    case $1 in
+      windows)
+        if [ -n "$arch_win" ]; then
+          a="$arch_win"
+        fi
+        ;;
+      linux)
+        if [ -n "$arch_lin" ]; then
+          a="$arch_lin"
+        fi
+        ;;
+      macos)
+        if [ -n "$arch_mac" ]; then
+          a="$arch_mac"
+        fi
+        ;;
+    esac
+  fi
+
+  echo "$a"
 )
 }
