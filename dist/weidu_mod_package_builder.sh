@@ -50,7 +50,7 @@
 # It can be used for multi-platform packages to further customize the architecture of the setup binary.
 # This parameter overrides the "arch" parameter if specified.
 # Supported architectures: amd64, arm64
-# Default: <empty string>
+# Default: arm64
 
 # suffix={type_or_string}
 # Supported suffix types: version, none. Everything else is treated as a literal string.
