@@ -228,15 +228,17 @@ jobs:
 
       - id: prepare_repo
         name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.include_submodules }}
 
       - id: prepare_actions
         name: Check out packager repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: InfinityTools/WeiduModPackagerLibrary
+          # TODO: remove "ref" later
+          ref: devel
           path: .weidu_packager
           sparse-checkout: dist
 
@@ -271,7 +273,7 @@ jobs:
 
       - id: upload
         name: Upload asset to release
-        uses: svenstaro/upload-release-action@2.9.0
+        uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ steps.create.outputs.weidu_mod_package }}
