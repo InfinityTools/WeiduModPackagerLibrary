@@ -50,7 +50,7 @@ on:
         description: 'Architecture override of the included setup binary for macOS'
         required: false
         type: string
-        default: ''
+        default: 'arm64'
 
       # Suffix to add to the mod package filename.
       # Supported values: version, none. Anything else is treated as a literal string.
