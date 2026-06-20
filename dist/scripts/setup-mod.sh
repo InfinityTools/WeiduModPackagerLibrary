@@ -23,7 +23,7 @@ case "${uname_os}" in
     exe=".exe"
     ;;
   *)
-    echo "ERROR: Could not determine platform: ${uname_os}"
+    echo "ERROR: Could not determine platform: ${uname_os}" >/dev/stderr
     exit 1
     ;;
 esac
@@ -41,7 +41,7 @@ case "${uname_arch}" in
     arch="x86"
     ;;
   *)
-    echo "ERROR: Could not determine architecture: ${uname_arch}"
+    echo "ERROR: Could not determine architecture: ${uname_arch}" >/dev/stderr
     exit 1
     ;;
 esac
@@ -60,7 +60,7 @@ if test "${os}" = "win32" ; then
     "${setup_binary}" "$@"
     exit $?
   else
-    echo "ERROR: Setup binary not found: ${setup_binary}"
+    echo "ERROR: Setup binary not found: ${setup_binary}" >/dev/stderr
     exit 1
   fi
 fi
@@ -71,7 +71,7 @@ if ! test -e "${weidu_path}" ; then
   if ! test -e "${weidu_path}" ; then
     weidu_path="weidu_external/tools/weidu/${os}/x86/weidu${exe}"
     if ! test -e "${weidu_path}" ; then
-      echo "ERROR: WeiDU binary not found: ${weidu_path}"
+      echo "ERROR: WeiDU binary not found: ${weidu_path}" >/dev/stderr
       exit 1
     fi
   fi
@@ -137,16 +137,35 @@ else
     fi
   fi
 
-  if test -f "${mod_name}/${script_base}.tp2" ; then
-    tp2_path="${mod_name}/${script_base}.tp2"
-  elif test -f "${mod_name}/${mod_name}.tp2" ; then
-    tp2_path="${mod_name}/${mod_name}.tp2"
-  elif test -f "${mod_name}.tp2" ; then
-    tp2_path="${mod_name}.tp2"
-  elif test -f "${script_base}.tp2" ; then
-    tp2_path="${script_base}.tp2"
-  else
-    echo "ERROR: Could not find \"${mod_name}.tp2\" or \"${script_base}.tp2\" in any of the supported locations."
+  # Finding case-insensitive tp2 file path
+  tp2_path=""
+  path=$(find . -maxdepth 1 -type d -iname "${mod_name}")
+  if test -n "${path}" ; then
+    mod_folder="${path}"
+    # evaluate path: <modname>/setup-<modname>.tp2
+    path=$(find "${mod_folder}" -maxdepth 1 -type f -iname "${script_base}.tp2")
+    if test -z "${path}" ; then
+      # evaluate path: <modname>/<modname>.tp2
+      path=$(find "${mod_folder}" -maxdepth 1 -type f -iname "${mod_name}.tp2")
+    fi
+    if test -n "${path}" ; then
+      tp2_path="${path}"
+    fi
+  fi
+  if test -z "${tp2_path}" ; then
+    # evaluate path: <modname>.tp2
+    path=$(find . -maxdepth 1 -type f -iname "${mod_name}.tp2")
+    if test -z "${path}" ; then
+      # evaluate path: setup-<modname>.tp2
+      path=$(find . -maxdepth 1 -type f -iname "${script_base}.tp2")
+    fi
+    if test -n "${path}" ; then
+      tp2_path="${path}"
+    fi
+  fi
+
+  if test -z "${tp2_path}" ; then
+    echo "ERROR: Could not find \"${mod_name}.tp2\" or \"${script_base}.tp2\" in any of the supported locations." >/dev/stderr
     exit 1
   fi
 
