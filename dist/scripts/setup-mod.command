@@ -137,34 +137,16 @@ else
     fi
   fi
 
-  # Finding tp2 file path (case is ignored)
-  tp2_path=""
-  path=$(find . -maxdepth 1 -type d -iname "${mod_name}")
-  if test -n "${path}" ; then
-    mod_folder="${path}"
-    # evaluate path: <modname>/setup-<modname>.tp2
-    path=$(find "${mod_folder}" -maxdepth 1 -type f -iname "${script_base}.tp2")
-    if test -z "${path}" ; then
-      # evaluate path: <modname>/<modname>.tp2
-      path=$(find "${mod_folder}" -maxdepth 1 -type f -iname "${mod_name}.tp2")
-    fi
-    if test -n "${path}" ; then
-      tp2_path="${path}"
-    fi
-  fi
-  if test -z "${tp2_path}" ; then
-    # evaluate path: <modname>.tp2
-    path=$(find . -maxdepth 1 -type f -iname "${mod_name}.tp2")
-    if test -z "${path}" ; then
-      # evaluate path: setup-<modname>.tp2
-      path=$(find . -maxdepth 1 -type f -iname "${script_base}.tp2")
-    fi
-    if test -n "${path}" ; then
-      tp2_path="${path}"
-    fi
-  fi
-
-  if test -z "${tp2_path}" ; then
+  # Finding tp2 file path
+  if test -f "${mod_name}/${script_base}.tp2" ; then
+    tp2_path="${mod_name}/${script_base}.tp2"
+  elif test -f "${mod_name}/${mod_name}.tp2" ; then
+    tp2_path="${mod_name}/${mod_name}.tp2"
+  elif test -f "${mod_name}.tp2" ; then
+    tp2_path="${mod_name}.tp2"
+  elif test -f "${script_base}.tp2" ; then
+    tp2_path="${script_base}.tp2"
+  else
     echo "ERROR: Could not find \"${mod_name}.tp2\" or \"${script_base}.tp2\" in any of the supported locations." >/dev/stderr
     exit 1
   fi

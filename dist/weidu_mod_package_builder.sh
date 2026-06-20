@@ -278,7 +278,7 @@ while [ -n "$tp2_result" ]; do
       if [ -n "${multi_platforms[$os]}" ]; then
         ext=$([ "$os" = "linux" ] && echo ".sh" || echo ".command")
         setup_script_base=$(get_setup_binary_name "$tp2_file" "linux")
-        install -m755 "$DIR/scripts/setup-mod.sh" "${setup_script_base}${ext}"
+        install -m755 "$DIR/scripts/setup-mod${ext}" "${setup_script_base}${ext}"
         if [ $multi_autoupdate -eq 0 ]; then
           sed -i -e 's/autoupdate=1/autoupdate=0/' "${setup_script_base}${ext}"
         fi
